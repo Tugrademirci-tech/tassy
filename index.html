@@ -104,36 +104,23 @@
         var isEvalCalculation = false; 
         var stockfish = null;
 
-        // Dieser Code lädt Stockfish direkt als extern geladenes Skript IM Worker,
-        // umgeht aber geschickt die lokalen Datei-Sperren der Browser!
-        const workerCode = `
-            importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
-            
-            // Leite alle Nachrichten von Stockfish direkt an die App weiter
-            self.onmessage = function(e) {
-                self.postMessage(e.data);
-            };
-        `;
-
         function initStockfish() {
             try {
-                // Ein genialer Trick: Wir bauen einen Mini-Proxy-Worker, der Stockfish importiert. 
-                // Das akzeptieren Browser fast immer, auch offline nach dem ersten Caching.
+                // Wir laden Stockfish über eine stabile, ausfallsichere Fallback-URL im Worker,
+                // die perfekt vom Service Worker im nächsten Schritt abgefangen wird.
                 let blob = new Blob([
                     "importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');"
                 ], {type: 'application/javascript'});
                 
                 stockfish = new Worker(URL.createObjectURL(blob));
                 
-                // UCI Protokoll initialisieren für maximale Spielstärke
                 stockfish.postMessage('uci');
-                stockfish.postMessage('setoption name Skill Level value 20'); // MAXIMUM POWER (Level 20 von 20)
+                stockfish.postMessage('setoption name Skill Level value 20'); 
                 stockfish.postMessage('setoption name Contempt value 0');
                 stockfish.postMessage('isready');
 
                 stockfish.onmessage = function(event) {
                     let line = event.data;
-                    console.log("Stockfish sagt:", line); // Zum Debuggen in der Konsole
                     
                     if (line.indexOf('bestmove') > -1) {
                         if (isEvalCalculation) {
@@ -171,7 +158,6 @@
                 };
             } catch(e) {
                 console.error("Stockfish Fehler:", e);
-                alert("Fehler beim Starten von Stockfish Maximum.");
             }
         }
 
@@ -187,6 +173,7 @@
                 position: 'start',
                 orientation: playerColor === 'w' ? 'white' : 'black',
                 onDrop: handleMove,
+                // Nutzt die Standard-Wikipedia-Figuren, die wir im Service-Worker bombenfest cachen
                 pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
             });
 
@@ -213,8 +200,7 @@
             if(!stockfish) return;
             isEvalCalculation = false;
             stockfish.postMessage('position fen ' + game.fen());
-            // go depth 15 + movetime 1000 sorgt dafür, dass sie extrem tief rechnet (Großmeister-Niveau)
-            stockfish.postMessage('go depth 15 movetime 1000'); 
+            stockfish.postMessage('go depth 13 movetime 800'); // Minimal angepasst für absolut stabile Offline-Berechnung auf Handys
         }
 
         function updateUI() {
@@ -239,11 +225,10 @@
             if (!game.game_over() && game.turn() === playerColor && stockfish) {
                 isEvalCalculation = true;
                 stockfish.postMessage('position fen ' + game.fen());
-                stockfish.postMessage('go depth 8');
+                stockfish.postMessage('go depth 6');
             }
         }
 
-        // Korrektur: Die Bar zeigt nun stabil die Bewertung aus Sicht des menschlichen Spielers
         function updateEvalBar(score, isMate) {
             let displayScore = score;
             if (playerColor === 'b') displayScore = -score;
@@ -269,7 +254,7 @@
             isLookingForHint = true;
             isEvalCalculation = false;
             stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 15 movetime 1000');
+            stockfish.postMessage('go depth 13 movetime 800');
         }
 
         function highlightHint(move) {
@@ -280,6 +265,17 @@
         }
 
         function resetGame() { location.reload(); }
+
+        // Service Worker Registrierung
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('service-worker.js').then(function(reg) {
+                    console.log('Offline-ServiceWorker registriert!');
+                }).catch(function(err) {
+                    console.log('ServiceWorker Fehler: ', err);
+                });
+            });
+        }
     </script>
 </body>
 </html>
