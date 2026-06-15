@@ -1,6 +1,7 @@
-// Leerer Service-Worker, um Ladefehler von WebAssembly auf dem MacBook zu verhindern
+// Wir schalten den Cache komplett ab, damit das MacBook die Dateien frisch von GitHub lädt
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', () => self.clients.claim());
 self.addEventListener('fetch', event => {
   event.respondWith(fetch(event.request));
 });
+
