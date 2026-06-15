@@ -59,29 +59,22 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+    <script src="https://op12no2.github.io/lozza/lozza.js"></script>
     
     <script>
         var game = new Chess();
         var board = null;
         var playerColor = 'w';
         var isLookingForHint = false;
-        var stockfish = null;
+        var engine = null;
         var lastEval = 0.0; 
 
-        function initStockfish() {
+        function initEngine() {
             try {
-                // HANDY-BOMBEN-TRICK: Wir laden die Engine über das absolut sichere 'npmcdn', das Handy-Sperren komplett umgeht!
-                let blob = new Blob([
-                    "importScripts('https://npmcdn.com/stockfish.js@10.0.2/src/stockfish.js');"
-                ], {type: 'application/javascript'});
+                // Lozza Engine initialisieren (uci-kompatibel und läuft direkt im Hauptthread ohne Worker-Sperre!)
+                engine = new Lozza();
                 
-                stockfish = new Worker(URL.createObjectURL(blob));
-                stockfish.postMessage('uci');
-                stockfish.postMessage('isready');
-
-                stockfish.onmessage = function(event) {
-                    let line = event.data;
-                    
+                engine.onmessage = function(line) {
                     if (line.indexOf('bestmove') > -1) {
                         let moveUCI = line.split(' ')[1];
                         if (moveUCI && moveUCI !== '(none)') {
@@ -98,7 +91,7 @@
                         }
                     }
                     
-                    if (line.indexOf('info depth') > -1 && line.indexOf('cp') > -1) {
+                    if (line.indexOf('info depth') > -1 && line.indexOf('score cp') > -1) {
                         let parts = line.split(' ');
                         let cpIndex = parts.indexOf('cp');
                         let score = parseInt(parts[cpIndex + 1]) / 100;
@@ -112,8 +105,11 @@
                         updateEvalBar(score);
                     }
                 };
+
+                engine.postMessage('uci');
+                engine.postMessage('isready');
             } catch(e) {
-                $('#status-left').text("Handy-Blockade!");
+                $('#status-left').text("Engine-Fehler!");
             }
         }
 
@@ -121,7 +117,7 @@
             playerColor = color;
             document.getElementById('start-menu').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
-            initStockfish();
+            initEngine();
             board = Chessboard('myBoard', {
                 draggable: true,
                 position: 'start',
@@ -131,7 +127,7 @@
             });
             game.reset();
             updateUI();
-            if (playerColor === 'b') { setTimeout(askStockfishToMove, 600); }
+            if (playerColor === 'b') { setTimeout(askEngineToMove, 500); }
         }
 
         function handleMove(source, target) {
@@ -139,31 +135,32 @@
             var move = game.move({ from: source, to: target, promotion: 'q' });
             if (move === null) return 'snapback';
             
-            if (stockfish) {
-                stockfish.postMessage('position fen ' + game.fen());
-                stockfish.postMessage('go depth 10 movetime 300');
+            if (engine) {
+                engine.postMessage('position fen ' + game.fen());
+                engine.postMessage('go depth 8');
             }
 
             updateUI();
-            if (!game.game_over()) { setTimeout(askStockfishToMove, 600); }
+            if (!game.game_over()) { setTimeout(askEngineToMove, 500); }
         }
 
-        function askStockfishToMove() {
-            if(!stockfish) return;
+        function askEngineToMove() {
+            if(!engine) return;
             isLookingForHint = false;
-            stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 13 movetime 1000'); 
+            $('#status-left').text("Tassy überlegt...");
+            engine.postMessage('position fen ' + game.fen());
+            engine.postMessage('go depth 10'); 
         }
 
         function evaluatePlayerMove(currentEval) {
             let diff = Math.abs(lastEval - currentEval);
             let feedback = "👍 Guter Zug";
 
-            if (diff <= 0.1) feedback = "🌟 Bester Zug!";
-            else if (diff <= 0.3) feedback = "👍 Guter Zug";
-            else if (diff <= 0.7) feedback = "❓ Ungenau";
-            else if (diff <= 1.6) feedback = "❌ Fehler";
-            else if (diff > 1.6) feedback = "💥 PATZER!";
+            if (diff <= 0.15) feedback = "🌟 Bester Zug!";
+            else if (diff <= 0.4) feedback = "👍 Guter Zug";
+            else if (diff <= 0.8) feedback = "❓ Ungenau";
+            else if (diff <= 1.8) feedback = "❌ Fehler";
+            else if (diff > 1.8) feedback = "💥 PATZER!";
 
             $('#status-left').text(feedback);
         }
@@ -192,20 +189,13 @@
             $('#fill').css('width', Math.max(5, Math.min(95, percentage)) + '%');
         }
 
-        // Altes Zeug wegwerfen, um Platz zu machen
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(registrations => {
-                for(let r of registrations) { r.unregister(); }
-            });
-        }
-
         function doUndo() { game.undo(); game.undo(); board.position(game.fen()); $('#status-left').text("Zug zurückgenommen."); }
         function doHint() {
-            if(!stockfish || game.game_over() || game.turn() !== playerColor) return;
+            if(!engine || game.game_over() || game.turn() !== playerColor) return;
             $('#status-left').text("Suche besten Zug...");
             isLookingForHint = true;
-            stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 13 movetime 1000');
+            engine.postMessage('position fen ' + game.fen());
+            engine.postMessage('go depth 10');
         }
         function highlightHint(move) {
             let from = move.substring(0, 2); let to = move.substring(2, 4);
@@ -213,6 +203,11 @@
             setTimeout(() => { $('.square-' + from + ', .square-' + to).removeClass('hint-glow'); }, 2000);
         }
         function resetGame() { location.reload(); }
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js')
+            .catch(err => console.log(err));
+        }
     </script>
 </body>
 </html>
