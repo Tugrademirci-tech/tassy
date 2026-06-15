@@ -1,5 +1,5 @@
-// Bereinigter Service Worker ohne blockierenden Cache
-self.addEventListener('install', (event) => {
+// Absolut reiner Pass-Through Service Worker ohne Caching-Sperren
+self.addEventListener('install', () => {
     self.skipWaiting();
 });
 
@@ -8,6 +8,6 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    // Reicht alle Web-Anfragen einfach direkt weiter, um Abstürze zu verhindern
     event.respondWith(fetch(event.request));
 });
+
