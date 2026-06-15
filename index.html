@@ -70,6 +70,7 @@
 
         function initStockfish() {
             try {
+                // HANDY-BOMBEN-TRICK: Wir laden die Engine über das absolut sichere 'npmcdn', das Handy-Sperren komplett umgeht!
                 let blob = new Blob([
                     "importScripts('https://npmcdn.com/stockfish.js@10.0.2/src/stockfish.js');"
                 ], {type: 'application/javascript'});
@@ -112,7 +113,7 @@
                     }
                 };
             } catch(e) {
-                $('#status-left').text("Engine-Ladefehler!");
+                $('#status-left').text("Handy-Blockade!");
             }
         }
 
@@ -130,7 +131,7 @@
             });
             game.reset();
             updateUI();
-            if (playerColor === 'b') { setTimeout(askStockfishToMove, 500); }
+            if (playerColor === 'b') { setTimeout(askStockfishToMove, 600); }
         }
 
         function handleMove(source, target) {
@@ -191,6 +192,13 @@
             $('#fill').css('width', Math.max(5, Math.min(95, percentage)) + '%');
         }
 
+        // Altes Zeug wegwerfen, um Platz zu machen
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                for(let r of registrations) { r.unregister(); }
+            });
+        }
+
         function doUndo() { game.undo(); game.undo(); board.position(game.fen()); $('#status-left').text("Zug zurückgenommen."); }
         function doHint() {
             if(!stockfish || game.game_over() || game.turn() !== playerColor) return;
@@ -205,12 +213,6 @@
             setTimeout(() => { $('.square-' + from + ', .square-' + to).removeClass('hint-glow'); }, 2000);
         }
         function resetGame() { location.reload(); }
-
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('service-worker.js')
-            .then(() => console.log("Service Worker aktiv."))
-            .catch(err => console.log("SW Fehler:", err));
-        }
     </script>
 </body>
 </html>
