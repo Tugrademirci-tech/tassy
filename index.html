@@ -109,7 +109,7 @@
                 // Wir laden Stockfish über eine stabile, ausfallsichere Fallback-URL im Worker,
                 // die perfekt vom Service Worker im nächsten Schritt abgefangen wird.
                 let blob = new Blob([
-                    "importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');"
+                    "importScripts('https://cdn.jsdelivr.net/npm/stockfish@18.0.0/src/stockfish-18-lite-single.js');"
                 ], {type: 'application/javascript'});
                 
                 stockfish = new Worker(URL.createObjectURL(blob));
