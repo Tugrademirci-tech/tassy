@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>TASSY v18 Pro</title>
+    <title>TASSY PRO</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -69,8 +69,12 @@
 
         function initStockfish() {
             try {
-                // Absolut stabile, von GitHub erlaubte Engine-Zentrierung
-                stockfish = new Worker('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
+                // DER BLOB-TRICK: So umgehen wir die Sicherheitsblockade der Browser!
+                let blob = new Blob([
+                    "importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');"
+                ], {type: 'application/javascript'});
+                
+                stockfish = new Worker(URL.createObjectURL(blob));
                 
                 stockfish.postMessage('uci');
                 stockfish.postMessage('setoption name Skill Level value 20');
@@ -136,7 +140,7 @@
             isLookingForHint = false;
             $('#status-left').text("Tassy überlegt...");
             stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 14 movetime 1000'); 
+            stockfish.postMessage('go depth 13 movetime 1000'); 
         }
 
         function updateUI() {
@@ -170,7 +174,7 @@
             $('#status-left').text("Analysiere...");
             isLookingForHint = true;
             stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 14 movetime 1000');
+            stockfish.postMessage('go depth 13 movetime 1000');
         }
         function highlightHint(move) {
             let from = move.substring(0, 2); let to = move.substring(2, 4);
@@ -181,5 +185,6 @@
     </script>
 </body>
 </html>
+
 
 
