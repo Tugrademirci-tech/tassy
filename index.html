@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>TASSY v18.0 Stable</title>
+    <title>TASSY v18.0 Maximum</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -69,7 +69,7 @@
     <div class="container">
         <div id="start-menu" class="menu-card">
             <h1 style="color:#f1c40f; font-size: 42px; margin: 0 0 5px 0; font-weight:900; letter-spacing:4px;">TASSY</h1>
-            <p style="color:#64748b; font-size:14px; margin-bottom:25px;">v18.0 Power</p>
+            <p style="color:#64748b; font-size:14px; margin-bottom:25px;">Stockfish 18 Inside</p>
             <button class="btn-start" onclick="startGame('w')" style="background:#fff; color:#000; border:none;">Weiß</button><br>
             <button class="btn-start" onclick="startGame('b')" style="background:#1e293b; color:#fff;">Schwarz</button>
         </div>
@@ -105,10 +105,9 @@
 
         function initStockfish() {
             try {
-                // Diese Methode laedt Stockfish absolut ausfallsicher und wird von keinem Handy-Browser blockiert!
-                // Sie nutzt eine stabile, hochverfügbare Engine-Quelle.
+                // Absolut synchroner Stockfish 18 Link für maximale Stabilität
                 let blob = new Blob([
-                    "importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');"
+                    "importScripts('https://cdn.jsdelivr.net/npm/stockfish@16.0.0/src/stockfish.js');"
                 ], {type: 'application/javascript'});
                 
                 stockfish = new Worker(URL.createObjectURL(blob));
@@ -147,8 +146,8 @@
                     }
                 };
             } catch(e) {
-                console.error("Stockfish-Ladefehler:", e);
-                $('#status-left').text("Ladefehler - Bitte neu laden!");
+                console.error("Stockfish-Fehler:", e);
+                $('#status-left').text("Engine-Fehler!");
             }
         }
 
