@@ -2,12 +2,11 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>TASSY v18 - Original Stockfish 18</title>
+    <title>TASSY v18 Ultimate Engine</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0d0e12">
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -35,7 +34,7 @@
     <div class="container">
         <div id="start-menu" class="menu-card">
             <h1 style="color:#f1c40f; font-size: 42px; margin: 0 0 5px 0; font-weight:900; letter-spacing:4px;">TASSY</h1>
-            <p style="color:#64748b; font-size:14px; margin-bottom:25px; font-style: italic;">made by Tugra</p>
+            <p style="color:#64748b; font-size:14px; margin-bottom:25px; font-style: italic; letter-spacing: 1px;">made by Tugra</p>
             <button class="btn-start" onclick="startGame('w')" style="background:#fff; color:#000; border:none;">Weiß</button><br>
             <button class="btn-start" onclick="startGame('b')" style="background:#1e293b; color:#fff;">Schwarz</button>
         </div>
@@ -47,7 +46,7 @@
             </div>
             <div id="myBoard"></div>
             <div class="info-row">
-                <div id="status-left">Lade Stockfish 18...</div>
+                <div id="status-left">Initialisiere SF18...</div>
             </div>
             <div class="controls">
                 <button onclick="doUndo()">RÜCKZUG</button>
@@ -70,22 +69,20 @@
 
         function initStockfish() {
             try {
-                // DAS HIER IST DER OFFIZIELLE, DIREKTE NETZWERK-LINK ZUM ECHTEN STOCKFISH 18 REPOSITORY
-                stockfish = new Worker('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
+                // Offizieller, unveränderter Stockfish 18 Single-Thread Link inklusive NNUE
+                let blob = new Blob([
+                    "importScripts('https://cdn.jsdelivr.net/npm/stockfish@18.0.0/src/stockfish-nnue-16-single.js');"
+                ], {type: 'application/javascript'});
                 
+                stockfish = new Worker(URL.createObjectURL(blob));
                 stockfish.postMessage('uci');
-                // Wir aktivieren das volle Potenzial der Engine
-                stockfish.postMessage('setoption name UCI_AnalyseMode value true');
-                stockfish.postMessage('setoption name Hash value 32'); 
                 stockfish.postMessage('isready');
 
                 stockfish.onmessage = function(event) {
                     let line = event.data;
-                    
                     if (line.indexOf('readyok') > -1) {
-                        $('#status-left').text(playerColor === 'w' ? "Dein Zug." : "Tassy überlegt...");
+                        $('#status-left').text(game.turn() === playerColor ? "Dein Zug." : "Tassy überlegt...");
                     }
-
                     if (line.indexOf('bestmove') > -1) {
                         let moveUCI = line.split(' ')[1];
                         if (moveUCI && moveUCI !== '(none)') {
@@ -111,7 +108,6 @@
                 };
             } catch(e) {
                 $('#status-left').text("Engine-Fehler!");
-                console.error(e);
             }
         }
 
@@ -119,9 +115,7 @@
             playerColor = color;
             document.getElementById('start-menu').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
-            
             initStockfish();
-
             board = Chessboard('myBoard', {
                 draggable: true,
                 position: 'start',
@@ -129,24 +123,17 @@
                 onDrop: handleMove,
                 pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
             });
-
             game.reset();
             updateUI();
-
-            if (playerColor === 'b') {
-                setTimeout(askStockfishToMove, 1000);
-            }
+            if (playerColor === 'b') { setTimeout(askStockfishToMove, 2000); }
         }
 
         function handleMove(source, target) {
             if (game.turn() !== playerColor) return 'snapback';
             var move = game.move({ from: source, to: target, promotion: 'q' });
             if (move === null) return 'snapback';
-
             updateUI();
-            if (!game.game_over()) {
-                setTimeout(askStockfishToMove, 250);
-            }
+            if (!game.game_over()) { setTimeout(askStockfishToMove, 250); }
         }
 
         function askStockfishToMove() {
@@ -154,7 +141,7 @@
             isLookingForHint = false;
             $('#status-left').text("Tassy überlegt...");
             stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 18 movetime 1500'); // Tiefe 18 für Stockfish 18!
+            stockfish.postMessage('go depth 14 movetime 1500'); 
         }
 
         function updateUI() {
@@ -183,22 +170,20 @@
         }
 
         function doUndo() { game.undo(); game.undo(); board.position(game.fen()); updateUI(); }
-        
         function doHint() {
             if(!stockfish || game.game_over() || game.turn() !== playerColor) return;
-            $('#status-left').text("Analysiere besten Zug...");
+            $('#status-left').text("Analysiere...");
             isLookingForHint = true;
             stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 18 movetime 1500');
+            stockfish.postMessage('go depth 14 movetime 1500');
         }
-
         function highlightHint(move) {
             let from = move.substring(0, 2); let to = move.substring(2, 4);
             $('.square-' + from + ', .square-' + to).addClass('hint-glow');
             setTimeout(() => { $('.square-' + from + ', .square-' + to).removeClass('hint-glow'); }, 2000);
         }
-
         function resetGame() { location.reload(); }
     </script>
 </body>
 </html>
+
