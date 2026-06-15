@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>TASSY v18 Ultimate Engine</title>
+    <title>TASSY v18 Pro</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -39,14 +39,14 @@
             <button class="btn-start" onclick="startGame('b')" style="background:#1e293b; color:#fff;">Schwarz</button>
         </div>
         <div id="game-ui" style="display: none; width: 100%;">
-            <div class="tassy-label">TASSY v18</div>
+            <div class="tassy-label">TASSY PRO</div>
             <div class="bar-wrap">
                 <div id="eval-val">0.0</div>
                 <div id="fill"></div>
             </div>
             <div id="myBoard"></div>
             <div class="info-row">
-                <div id="status-left">Initialisiere SF18...</div>
+                <div id="status-left">Bereit.</div>
             </div>
             <div class="controls">
                 <button onclick="doUndo()">RÜCKZUG</button>
@@ -69,20 +69,15 @@
 
         function initStockfish() {
             try {
-                // Offizieller, unveränderter Stockfish 18 Single-Thread Link inklusive NNUE
-                let blob = new Blob([
-                    "importScripts('https://cdn.jsdelivr.net/npm/stockfish@18.0.0/src/stockfish-nnue-16-single.js');"
-                ], {type: 'application/javascript'});
+                // Absolut stabile, von GitHub erlaubte Engine-Zentrierung
+                stockfish = new Worker('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
                 
-                stockfish = new Worker(URL.createObjectURL(blob));
                 stockfish.postMessage('uci');
+                stockfish.postMessage('setoption name Skill Level value 20');
                 stockfish.postMessage('isready');
 
                 stockfish.onmessage = function(event) {
                     let line = event.data;
-                    if (line.indexOf('readyok') > -1) {
-                        $('#status-left').text(game.turn() === playerColor ? "Dein Zug." : "Tassy überlegt...");
-                    }
                     if (line.indexOf('bestmove') > -1) {
                         let moveUCI = line.split(' ')[1];
                         if (moveUCI && moveUCI !== '(none)') {
@@ -125,7 +120,7 @@
             });
             game.reset();
             updateUI();
-            if (playerColor === 'b') { setTimeout(askStockfishToMove, 2000); }
+            if (playerColor === 'b') { setTimeout(askStockfishToMove, 500); }
         }
 
         function handleMove(source, target) {
@@ -141,7 +136,7 @@
             isLookingForHint = false;
             $('#status-left').text("Tassy überlegt...");
             stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 14 movetime 1500'); 
+            stockfish.postMessage('go depth 14 movetime 1000'); 
         }
 
         function updateUI() {
@@ -175,7 +170,7 @@
             $('#status-left').text("Analysiere...");
             isLookingForHint = true;
             stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 14 movetime 1500');
+            stockfish.postMessage('go depth 14 movetime 1000');
         }
         function highlightHint(move) {
             let from = move.substring(0, 2); let to = move.substring(2, 4);
@@ -186,4 +181,5 @@
     </script>
 </body>
 </html>
+
 
