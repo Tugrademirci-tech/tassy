@@ -6,38 +6,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
     <style>
-        * { box-sizing: border-box; font-family: sans-serif; }
-        body { background: #0d0e12; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 10px; }
+        * { box-sizing: border-box; touch-action: manipulation; }
+        body { background: #0d0e12; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 10px; overflow: hidden; }
         .container { max-width: 340px; width: 100%; text-align: center; }
-        h1 { color: #f1c40f; margin-bottom: 15px; font-size: 24px; }
+        h1 { color: #f1c40f; margin: 0 0 15px 0; font-size: 24px; font-family: sans-serif; }
         #myBoard { width: 100%; border-radius: 5px; border: 3px solid #1e293b; }
-        #status { margin: 15px 0; font-weight: bold; color: #f1c40f; }
+        #status { margin: 15px 0; font-weight: bold; color: #f1c40f; font-family: sans-serif; }
         .btn { width: 100%; padding: 12px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .highlight { box-shadow: inset 0 0 3px 3px yellow !important; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>TASSY</h1>
         <div id="myBoard"></div>
-        <div id="status">Wähle deinen Zug...</div>
+        <div id="status">Figur anklicken...</div>
         <button class="btn" onclick="location.reload()">NEUSTART</button>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js"></script>
 
     <script>
         var game = new Chess();
         var board = null;
-        var engine = null;
+        var stockfish = null;
+        var sourceSquare = null;
 
         function initEngine() {
-            if (typeof STOCKFISH === 'function') {
-                engine = STOCKFISH();
-                engine.onmessage = function(event) {
-                    var line = (typeof event === 'object' && event.data) ? event.data : event;
+            try {
+                stockfish = new Worker('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
+                stockfish.onmessage = function(event) {
+                    var line = event.data;
                     if (line.indexOf('bestmove') > -1) {
                         var moveUCI = line.split(' ')[1];
                         if (moveUCI && moveUCI !== '(none)') {
@@ -47,44 +48,85 @@
                         }
                     }
                 };
-                engine.postMessage('uci');
-                engine.postMessage('isready');
-            } else {
-                $('#status').text("Ladefehler Engine!");
+                stockfish.postMessage('uci');
+                stockfish.postMessage('isready');
+            } catch (e) {
+                $('#status').text("Engine-Ladefehler!");
             }
         }
 
-        function handleMove(source, target) {
-            if (game.turn() !== 'w') return 'snapback';
-            var move = game.move({ from: source, to: target, promotion: 'q' });
-            if (move === null) return 'snapback';
+        function removeHighlights() {
+            $('#myBoard .square-55d63').removeClass('highlight');
+        }
 
-            updateStatus();
-            if (!game.game_over()) {
-                setTimeout(askEngine, 250);
+        function onSquareClick(square) {
+            if (game.turn() !== 'w' || game.game_over()) return;
+
+            // Wenn noch keine Figur ausgewählt ist
+            if (sourceSquare === null) {
+                var piece = game.get(square);
+                if (piece && piece.color === 'w') {
+                    sourceSquare = square;
+                    removeHighlights();
+                    $('.square-' + square).addClass('highlight');
+                }
+            } else {
+                // Wenn die gleiche Figur noch mal geklickt wird -> Abwahl
+                if (sourceSquare === square) {
+                    sourceSquare = null;
+                    removeHighlights();
+                    return;
+                }
+
+                // Zug ausführen
+                var move = game.move({ from: sourceSquare, to: square, promotion: 'q' });
+                sourceSquare = null;
+                removeHighlights();
+
+                if (move === null) {
+                    // Falls es ein ungültiger Zug war, schauen ob stattdessen eine andere eigene Figur geklickt wurde
+                    var piece = game.get(square);
+                    if (piece && piece.color === 'w') {
+                        sourceSquare = square;
+                        $('.square-' + square).addClass('highlight');
+                    }
+                    return;
+                }
+
+                board.position(game.fen());
+                updateStatus();
+
+                if (!game.game_over()) {
+                    setTimeout(askEngine, 300);
+                }
             }
         }
 
         function askEngine() {
-            if (!engine) return;
+            if (!stockfish) return;
             $('#status').text("Tassy überlegt...");
-            engine.postMessage('position fen ' + game.fen());
-            engine.postMessage('go depth 10 movetime 800');
+            stockfish.postMessage('position fen ' + game.fen());
+            stockfish.postMessage('go depth 10 movetime 800');
         }
 
         function updateStatus() {
             if (game.in_checkmate()) $('#status').text("MATT!");
-            else if (game.in_draw()) $('#status-left').text("REMIS!");
+            else if (game.in_draw()) $('#status').text("REMIS!");
             else $('#status').text(game.turn() === 'w' ? "Du bist am Zug (Weiß)." : "Tassy überlegt...");
         }
 
-        // Start
         initEngine();
+        
         board = Chessboard('myBoard', {
-            draggable: true,
+            draggable: false, // ZIEHEN DEAKTIVIERT gegen das Wackeln
             position: 'start',
-            onDrop: handleMove,
             pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
+        });
+
+        // Klick-Event für die Felder registrieren
+        $('#myBoard').on('click', '.square-55d63', function() {
+            var square = $(this).attr('data-square');
+            onSquareClick(square);
         });
 
         if ('serviceWorker' in navigator) {
