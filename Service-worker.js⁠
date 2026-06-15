@@ -1,13 +1,30 @@
-// Absolut reiner Pass-Through Service Worker ohne Caching-Sperren
-self.addEventListener('install', () => {
-    self.skipWaiting();
+const CACHE_NAME = 'tassy-v3.8-cache';
+const urlsToCache = [
+  'index.html',
+  'stockfish.js',
+  'https://code.jquery.com/jquery-3.5.1.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js',
+  'https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css',
+  'https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js'
+];
+
+// Figuren-Grafiken automatisch mitschützen
+for (let p of ['wP','wR','wN','wB','wQ','wK','bP','bR','bN','bB','bQ','bK']) {
+    urlsToCache.push(`https://chessboardjs.com/img/chesspieces/wikipedia/${p}.png`);
+}
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll(urlsToCache);
+    })
+  );
 });
 
-self.addEventListener('activate', (event) => {
-    event.waitUntil(self.clients.claim());
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request).then(response => {
+      return response || fetch(event.request);
+    })
+  );
 });
-
-self.addEventListener('fetch', (event) => {
-    event.respondWith(fetch(event.request));
-});
-
