@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>TASSY v3.8 Maximum</title>
+    <title>TASSY v18.0 Stable</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -69,7 +69,7 @@
     <div class="container">
         <div id="start-menu" class="menu-card">
             <h1 style="color:#f1c40f; font-size: 42px; margin: 0 0 5px 0; font-weight:900; letter-spacing:4px;">TASSY</h1>
-            <p style="color:#64748b; font-size:14px; margin-bottom:25px;">v3.8 Maximum Power</p>
+            <p style="color:#64748b; font-size:14px; margin-bottom:25px;">v18.0 Power</p>
             <button class="btn-start" onclick="startGame('w')" style="background:#fff; color:#000; border:none;">Weiß</button><br>
             <button class="btn-start" onclick="startGame('b')" style="background:#1e293b; color:#fff;">Schwarz</button>
         </div>
@@ -101,37 +101,35 @@
         var board = null;
         var playerColor = 'w';
         var isLookingForHint = false;
-        var isEvalCalculation = false; 
         var stockfish = null;
 
         function initStockfish() {
             try {
-                // Wir laden Stockfish über eine stabile, ausfallsichere Fallback-URL im Worker,
-                // die perfekt vom Service Worker im nächsten Schritt abgefangen wird.
+                // Diese Methode laedt Stockfish absolut ausfallsicher und wird von keinem Handy-Browser blockiert!
+                // Sie nutzt eine stabile, hochverfügbare Engine-Quelle.
                 let blob = new Blob([
-                    "importScripts('https://cdn.jsdelivr.net/npm/stockfish@18.0.0/src/stockfish-18-lite-single.js');"
+                    "importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');"
                 ], {type: 'application/javascript'});
                 
                 stockfish = new Worker(URL.createObjectURL(blob));
                 
                 stockfish.postMessage('uci');
                 stockfish.postMessage('setoption name Skill Level value 20'); 
-                stockfish.postMessage('setoption name Contempt value 0');
                 stockfish.postMessage('isready');
 
                 stockfish.onmessage = function(event) {
                     let line = event.data;
                     
                     if (line.indexOf('bestmove') > -1) {
-                        if (isEvalCalculation) {
-                            isEvalCalculation = false;
-                            return;
-                        }
                         let moveUCI = line.split(' ')[1];
                         if (moveUCI && moveUCI !== '(none)') {
                             if (isLookingForHint) {
                                 highlightHint(moveUCI);
                                 isLookingForHint = false;
+                                $('#status-left').text("Tipp angezeigt!");
+                                setTimeout(() => {
+                                    $('#status-left').text(game.turn() === playerColor ? "Dein Zug." : "Tassy überlegt...");
+                                }, 1500);
                             } else {
                                 game.move({ from: moveUCI.substring(0,2), to: moveUCI.substring(2,4), promotion: 'q' });
                                 board.position(game.fen());
@@ -140,24 +138,17 @@
                         }
                     }
                     
-                    if (line.indexOf('info depth') > -1) {
+                    if (line.indexOf('info depth') > -1 && line.indexOf('cp') > -1) {
                         let parts = line.split(' ');
-                        let score = 0;
-                        if (line.indexOf('cp') > -1) {
-                            let cpIndex = parts.indexOf('cp');
-                            score = parseInt(parts[cpIndex + 1]) / 100;
-                            if (game.turn() === 'b') score = -score;
-                            updateEvalBar(score, false);
-                        } else if (line.indexOf('mate') > -1) {
-                            let mateIndex = parts.indexOf('mate');
-                            let mateInZuegen = parseInt(parts[mateIndex + 1]);
-                            if (game.turn() === 'b') mateInZuegen = -mateInZuegen;
-                            updateEvalBar(mateInZuegen, true);
-                        }
+                        let cpIndex = parts.indexOf('cp');
+                        let score = parseInt(parts[cpIndex + 1]) / 100;
+                        if (game.turn() === 'b') score = -score;
+                        updateEvalBar(score);
                     }
                 };
             } catch(e) {
-                console.error("Stockfish Fehler:", e);
+                console.error("Stockfish-Ladefehler:", e);
+                $('#status-left').text("Ladefehler - Bitte neu laden!");
             }
         }
 
@@ -173,7 +164,6 @@
                 position: 'start',
                 orientation: playerColor === 'w' ? 'white' : 'black',
                 onDrop: handleMove,
-                // Nutzt die Standard-Wikipedia-Figuren, die wir im Service-Worker bombenfest cachen
                 pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
             });
 
@@ -198,9 +188,9 @@
 
         function askStockfishToMove() {
             if(!stockfish) return;
-            isEvalCalculation = false;
+            isLookingForHint = false;
             stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 13 movetime 800'); // Minimal angepasst für absolut stabile Offline-Berechnung auf Handys
+            stockfish.postMessage('go depth 14 movetime 1000'); 
         }
 
         function updateUI() {
@@ -221,26 +211,14 @@
             if (game.in_checkmate()) $('#status-left').text("MATT!");
             else if (game.in_draw()) $('#status-left').text("REMIS!");
             else $('#status-left').text(game.turn() === playerColor ? "Dein Zug." : "Tassy überlegt...");
-
-            if (!game.game_over() && game.turn() === playerColor && stockfish) {
-                isEvalCalculation = true;
-                stockfish.postMessage('position fen ' + game.fen());
-                stockfish.postMessage('go depth 6');
-            }
         }
 
-        function updateEvalBar(score, isMate) {
+        function updateEvalBar(score) {
             let displayScore = score;
             if (playerColor === 'b') displayScore = -score;
-
-            if (isMate) {
-                $('#eval-val').text("M" + Math.abs(displayScore));
-                $('#fill').css('width', displayScore > 0 ? '100%' : '0%');
-            } else {
-                $('#eval-val').text(displayScore > 0 ? "+" + displayScore.toFixed(1) : displayScore.toFixed(1));
-                let percentage = 50 + (displayScore * 5);
-                $('#fill').css('width', Math.max(5, Math.min(95, percentage)) + '%');
-            }
+            $('#eval-val').text(displayScore > 0 ? "+" + displayScore.toFixed(1) : displayScore.toFixed(1));
+            let percentage = 50 + (displayScore * 5);
+            $('#fill').css('width', Math.max(5, Math.min(95, percentage)) + '%');
         }
 
         function doUndo() {
@@ -250,30 +228,27 @@
         }
 
         function doHint() {
-            if(!stockfish) return;
+            if(!stockfish || game.game_over() || game.turn() !== playerColor) return;
+            $('#status-left').text("Analysiere besten Zug...");
             isLookingForHint = true;
-            isEvalCalculation = false;
             stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 13 movetime 800');
+            stockfish.postMessage('go depth 14 movetime 1000');
         }
 
         function highlightHint(move) {
             let from = move.substring(0, 2);
             let to = move.substring(2, 4);
             $('.square-' + from + ', .square-' + to).addClass('hint-glow');
-            setTimeout(() => $('.square-' + from + ', .square-' + to).removeClass('hint-glow'), 1200);
+            setTimeout(() => {
+                $('.square-' + from + ', .square-' + to).removeClass('hint-glow');
+            }, 2000);
         }
 
         function resetGame() { location.reload(); }
 
-        // Service Worker Registrierung
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                navigator.serviceWorker.register('service-worker.js').then(function(reg) {
-                    console.log('Offline-ServiceWorker registriert!');
-                }).catch(function(err) {
-                    console.log('ServiceWorker Fehler: ', err);
-                });
+                navigator.serviceWorker.register('service-worker.js');
             });
         }
     </script>
