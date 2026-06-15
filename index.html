@@ -2,8 +2,15 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>TASSY v3.8 Standalone</title>
+    <title>TASSY v3.8 Mobile</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0d0e12">
+    
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlRBU1NZIFNjaGFjaCIsCiAgInNob3J0X25hbWUiOiAiVEFTU1kiLAogICJzdGFydF91cmwiOiAiaW5kZXguaHRtbCIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzBkMGUxMiIsCiAgInRoZW1lX2NvbG9yIjogIiMwZDBlMTIiLAogICJvcmllbnRhdGlvbiI6ICJwb3J0cmFpdCIKfQ==">
+
     <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -15,7 +22,6 @@
         .container { display: flex; flex-direction: column; align-items: center; max-width: 340px; width: 100%; }
         .tassy-label { color: #f1c40f; font-weight: 800; font-size: 22px; letter-spacing: 3px; margin-bottom: 12px; text-shadow: 0 0 10px rgba(241,196,15,0.3); }
         
-        /* Eval-Bar */
         .bar-wrap { 
             width: 100%; height: 14px; background: #1e293b; border-radius: 20px; 
             overflow: hidden; margin-bottom: 15px; border: 1px solid #334155; position: relative; 
@@ -39,7 +45,6 @@
         }
         #status-left { background: #1e293b; padding: 4px 10px; border-radius: 6px; border: 1px solid #334155; color: #f1c40f; }
 
-        /* Controls */
         .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; width: 100%; margin-top: 15px; }
         button { 
             padding: 12px 5px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 12px; 
@@ -49,14 +54,12 @@
         .btn-hint { background: rgba(241, 196, 15, 0.15); color: #f1c40f; border: 1px solid #f1c40f; }
         .btn-reset { background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid #e74c3c; }
 
-        /* Start-Bildschirm */
         .menu-card {
             background: #111827; border: 1px solid #1e293b; padding: 30px; border-radius: 12px;
             box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); text-align: center;
         }
         .btn-start { width: 160px; height: 50px; margin: 8px; font-size: 15px; border-radius: 8px; text-transform: uppercase; letter-spacing: 1px; }
 
-        /* Effekte */
         .check-sq { box-shadow: inset 0 0 15px 5px rgba(231, 76, 60, 0.8) !important; background: #5c1d1d !important; }
         .hint-glow { box-shadow: inset 0 0 15px 5px rgba(46, 204, 113, 0.8) !important; }
     </style>
@@ -98,61 +101,65 @@
         var board = null;
         var playerColor = 'w';
         var isLookingForHint = false;
-        var isEvalCalculation = false; // Verhindert, dass die Eval-Bar Züge auslöst
+        var isEvalCalculation = false; 
+        var stockfish = null;
 
-        // Stockfish über Web-Worker laden
-        var stockfish = new Worker('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
-
-        stockfish.onmessage = function(event) {
-            let line = event.data;
-            
-            // Besten Zug finden
-            if (line.indexOf('bestmove') > -1) {
-                // Wenn die Engine nur für die Eval-Bar gerechnet hat, ignorieren wir den Zug
-                if (isEvalCalculation) {
-                    isEvalCalculation = false;
-                    return;
-                }
-
-                let moveUCI = line.split(' ')[1];
-                if (moveUCI && moveUCI !== '(none)') {
-                    if (isLookingForHint) {
-                        highlightHint(moveUCI);
-                        isLookingForHint = false;
-                    } else {
-                        // KI macht ihren Zug
-                        game.move({ from: moveUCI.substring(0,2), to: moveUCI.substring(2,4), promotion: 'q' });
-                        board.position(game.fen());
-                        updateUI();
+        // Offline-Vorbereitung: Wir laden Stockfish aus dem gleichen Verzeichnis!
+        function initStockfish() {
+            try {
+                // Nutzt die lokale Datei für echten Offline-Betrieb auf dem Handy
+                stockfish = new Worker('stockfish.js');
+                
+                stockfish.onmessage = function(event) {
+                    let line = event.data;
+                    
+                    if (line.indexOf('bestmove') > -1) {
+                        if (isEvalCalculation) {
+                            isEvalCalculation = false;
+                            return;
+                        }
+                        let moveUCI = line.split(' ')[1];
+                        if (moveUCI && moveUCI !== '(none)') {
+                            if (isLookingForHint) {
+                                highlightHint(moveUCI);
+                                isLookingForHint = false;
+                            } else {
+                                game.move({ from: moveUCI.substring(0,2), to: moveUCI.substring(2,4), promotion: 'q' });
+                                board.position(game.fen());
+                                updateUI();
+                            }
+                        }
                     }
-                }
+                    
+                    if (line.indexOf('info depth') > -1) {
+                        let parts = line.split(' ');
+                        let score = 0;
+                        if (line.indexOf('cp') > -1) {
+                            let cpIndex = parts.indexOf('cp');
+                            score = parseInt(parts[cpIndex + 1]) / 100;
+                            if (game.turn() === 'b') score = -score;
+                            updateEvalBar(score, false);
+                        } else if (line.indexOf('mate') > -1) {
+                            let mateIndex = parts.indexOf('mate');
+                            let mateInZuegen = parseInt(parts[mateIndex + 1]);
+                            if (game.turn() === 'b') mateInZuegen = -mateInZuegen;
+                            updateEvalBar(mateInZuegen, true);
+                        }
+                    }
+                };
+            } catch(e) {
+                console.error("Stockfish Fehler:", e);
+                alert("Bitte lade die 'stockfish.js' Datei herunter, damit die Engine offline funktioniert!");
             }
-            
-            // Evaluation auslesen für die Eval-Bar (Unterstützt cp und mate)
-            if (line.indexOf('info depth') > -1) {
-                let parts = line.split(' ');
-                let score = 0;
-
-                if (line.indexOf('cp') > -1) {
-                    let cpIndex = parts.indexOf('cp');
-                    score = parseInt(parts[cpIndex + 1]) / 100;
-                    // Aus Sicht von Weiß spiegeln
-                    if (game.turn() === 'b') score = -score;
-                    updateEvalBar(score, false);
-                } else if (line.indexOf('mate') > -1) {
-                    let mateIndex = parts.indexOf('mate');
-                    let mateInZuegen = parseInt(parts[mateIndex + 1]);
-                    if (game.turn() === 'b') mateInZuegen = -mateInZuegen;
-                    updateEvalBar(mateInZuegen, true);
-                }
-            }
-        };
+        }
 
         function startGame(color) {
             playerColor = color;
             document.getElementById('start-menu').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
             
+            initStockfish(); // Engine starten
+
             board = Chessboard('myBoard', {
                 draggable: true,
                 position: 'start',
@@ -171,30 +178,23 @@
 
         function handleMove(source, target) {
             if (game.turn() !== playerColor) return 'snapback';
-
-            var move = game.move({
-                from: source,
-                to: target,
-                promotion: 'q'
-            });
-
+            var move = game.move({ from: source, to: target, promotion: 'q' });
             if (move === null) return 'snapback';
 
             updateUI();
-
             if (!game.game_over()) {
                 setTimeout(askStockfishToMove, 250);
             }
         }
 
         function askStockfishToMove() {
+            if(!stockfish) return;
             isEvalCalculation = false;
             stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 12'); 
+            stockfish.postMessage('go depth 10'); // Mobil-optimiert für Akku & Speed
         }
 
         function updateUI() {
-            // Schach-König rot markieren (Bereinigte Logik)
             $('.square-55d63').removeClass('check-sq');
             if (game.in_check()) {
                 let turn = game.turn();
@@ -209,24 +209,21 @@
                 }
             }
 
-            // Status-Text
             if (game.in_checkmate()) $('#status-left').text("MATT!");
             else if (game.in_draw()) $('#status-left').text("REMIS!");
             else $('#status-left').text(game.turn() === playerColor ? "Dein Zug." : "Tassy überlegt...");
 
-            // Eval-Bar nach dem Zug triggern, falls das Spiel läuft
-            if (!game.game_over() && game.turn() === playerColor) {
+            if (!game.game_over() && game.turn() === playerColor && stockfish) {
                 isEvalCalculation = true;
                 stockfish.postMessage('position fen ' + game.fen());
-                stockfish.postMessage('go depth 8');
+                stockfish.postMessage('go depth 6');
             }
         }
 
         function updateEvalBar(score, isMate) {
             if (isMate) {
                 $('#eval-val').text("M" + Math.abs(score));
-                let percentage = score > 0 ? 100 : 0;
-                $('#fill').css('width', percentage + '%');
+                $('#fill').css('width', score > 0 ? '100%' : '0%');
             } else {
                 $('#eval-val').text(score > 0 ? "+" + score.toFixed(1) : score.toFixed(1));
                 let percentage = 50 + (score * 5);
@@ -235,17 +232,17 @@
         }
 
         function doUndo() {
-            game.undo(); // Gegner-Zug zurück
-            game.undo(); // Eigener Zug zurück
+            game.undo(); game.undo();
             board.position(game.fen());
             updateUI();
         }
 
         function doHint() {
+            if(!stockfish) return;
             isLookingForHint = true;
             isEvalCalculation = false;
             stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 12');
+            stockfish.postMessage('go depth 10');
         }
 
         function highlightHint(move) {
@@ -255,8 +252,17 @@
             setTimeout(() => $('.square-' + from + ', .square-' + to).removeClass('hint-glow'), 1200);
         }
 
-        function resetGame() {
-            location.reload();
+        function resetGame() { location.reload(); }
+
+        // --- SERVICE WORKER REGISTRIERUNG (Für Offline-Betrieb) ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('service-worker.js').then(function(reg) {
+                    console.log('Offline-ServiceWorker registriert!', reg.scope);
+                }).catch(function(err) {
+                    console.log('ServiceWorker fehlgeschlagen: ', err);
+                });
+            });
         }
     </script>
 </body>
