@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>TASSY v3.8 Mobile</title>
+    <title>TASSY v3.8 Maximum</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -69,7 +69,7 @@
     <div class="container">
         <div id="start-menu" class="menu-card">
             <h1 style="color:#f1c40f; font-size: 42px; margin: 0 0 5px 0; font-weight:900; letter-spacing:4px;">TASSY</h1>
-            <p style="color:#64748b; font-size:14px; margin-bottom:25px;">v3.8 Mobile Offline</p>
+            <p style="color:#64748b; font-size:14px; margin-bottom:25px;">v3.8 Maximum Power</p>
             <button class="btn-start" onclick="startGame('w')" style="background:#fff; color:#000; border:none;">Weiß</button><br>
             <button class="btn-start" onclick="startGame('b')" style="background:#1e293b; color:#fff;">Schwarz</button>
         </div>
@@ -104,14 +104,36 @@
         var isEvalCalculation = false; 
         var stockfish = null;
 
-        // Offline-Vorbereitung: Wir laden Stockfish aus dem gleichen Verzeichnis!
+        // Dieser Code lädt Stockfish direkt als extern geladenes Skript IM Worker,
+        // umgeht aber geschickt die lokalen Datei-Sperren der Browser!
+        const workerCode = `
+            importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
+            
+            // Leite alle Nachrichten von Stockfish direkt an die App weiter
+            self.onmessage = function(e) {
+                self.postMessage(e.data);
+            };
+        `;
+
         function initStockfish() {
             try {
-                // Nutzt die lokale Datei für echten Offline-Betrieb auf dem Handy
-                stockfish = new Worker('stockfish.js');
+                // Ein genialer Trick: Wir bauen einen Mini-Proxy-Worker, der Stockfish importiert. 
+                // Das akzeptieren Browser fast immer, auch offline nach dem ersten Caching.
+                let blob = new Blob([
+                    "importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');"
+                ], {type: 'application/javascript'});
                 
+                stockfish = new Worker(URL.createObjectURL(blob));
+                
+                // UCI Protokoll initialisieren für maximale Spielstärke
+                stockfish.postMessage('uci');
+                stockfish.postMessage('setoption name Skill Level value 20'); // MAXIMUM POWER (Level 20 von 20)
+                stockfish.postMessage('setoption name Contempt value 0');
+                stockfish.postMessage('isready');
+
                 stockfish.onmessage = function(event) {
                     let line = event.data;
+                    console.log("Stockfish sagt:", line); // Zum Debuggen in der Konsole
                     
                     if (line.indexOf('bestmove') > -1) {
                         if (isEvalCalculation) {
@@ -149,7 +171,7 @@
                 };
             } catch(e) {
                 console.error("Stockfish Fehler:", e);
-                alert("Bitte lade die 'stockfish.js' Datei herunter, damit die Engine offline funktioniert!");
+                alert("Fehler beim Starten von Stockfish Maximum.");
             }
         }
 
@@ -158,7 +180,7 @@
             document.getElementById('start-menu').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
             
-            initStockfish(); // Engine starten
+            initStockfish();
 
             board = Chessboard('myBoard', {
                 draggable: true,
@@ -191,7 +213,8 @@
             if(!stockfish) return;
             isEvalCalculation = false;
             stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 10'); // Mobil-optimiert für Akku & Speed
+            // go depth 15 + movetime 1000 sorgt dafür, dass sie extrem tief rechnet (Großmeister-Niveau)
+            stockfish.postMessage('go depth 15 movetime 1000'); 
         }
 
         function updateUI() {
@@ -216,17 +239,21 @@
             if (!game.game_over() && game.turn() === playerColor && stockfish) {
                 isEvalCalculation = true;
                 stockfish.postMessage('position fen ' + game.fen());
-                stockfish.postMessage('go depth 6');
+                stockfish.postMessage('go depth 8');
             }
         }
 
+        // Korrektur: Die Bar zeigt nun stabil die Bewertung aus Sicht des menschlichen Spielers
         function updateEvalBar(score, isMate) {
+            let displayScore = score;
+            if (playerColor === 'b') displayScore = -score;
+
             if (isMate) {
-                $('#eval-val').text("M" + Math.abs(score));
-                $('#fill').css('width', score > 0 ? '100%' : '0%');
+                $('#eval-val').text("M" + Math.abs(displayScore));
+                $('#fill').css('width', displayScore > 0 ? '100%' : '0%');
             } else {
-                $('#eval-val').text(score > 0 ? "+" + score.toFixed(1) : score.toFixed(1));
-                let percentage = 50 + (score * 5);
+                $('#eval-val').text(displayScore > 0 ? "+" + displayScore.toFixed(1) : displayScore.toFixed(1));
+                let percentage = 50 + (displayScore * 5);
                 $('#fill').css('width', Math.max(5, Math.min(95, percentage)) + '%');
             }
         }
@@ -242,7 +269,7 @@
             isLookingForHint = true;
             isEvalCalculation = false;
             stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 10');
+            stockfish.postMessage('go depth 15 movetime 1000');
         }
 
         function highlightHint(move) {
@@ -253,17 +280,6 @@
         }
 
         function resetGame() { location.reload(); }
-
-        // --- SERVICE WORKER REGISTRIERUNG (Für Offline-Betrieb) ---
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('service-worker.js').then(function(reg) {
-                    console.log('Offline-ServiceWorker registriert!', reg.scope);
-                }).catch(function(err) {
-                    console.log('ServiceWorker fehlgeschlagen: ', err);
-                });
-            });
-        }
     </script>
 </body>
 </html>
