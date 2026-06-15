@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tassy-v4-cache';
+const CACHE_NAME = 'tassy-v18-cache';
 const urlsToCache = [
   './',
   './index.html',
@@ -6,7 +6,7 @@ const urlsToCache = [
   'https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js',
   'https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js',
   'https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css',
-  'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js'
+  'https://cdn.jsdelivr.net/npm/stockfish@18.0.0/src/stockfish-18-lite-single.js'
 ];
 
 const pieces = ['wP','wR','wN','wB','wQ','wK','bP','bR','bN','bB','bQ','bK'];
