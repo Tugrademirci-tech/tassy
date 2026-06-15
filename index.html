@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>TASSY - Stable Edition</title>
+    <title>TASSY v18 Ultimate</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -11,7 +11,7 @@
     
     <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlRBU1NZIFNjaGFjaCIsCiAgInNob3J0X25hbWUiOiAiVEFTU1kiLAogICJzdGFydF91cmwiOiAiaW5kZXguaHRtbCIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzBkMGUxMiIsCiAgInRoZW1lX2NvbG9yIjogIiMwZDBlMTIiLAogICJvcmllbnRhdGlvbiI6ICJwb3J0cmFpdCIKfQ==">
 
-    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { 
@@ -92,9 +92,9 @@
         </div>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
 
     <script>
         var game = new Chess();
@@ -105,7 +105,6 @@
 
         function initStockfish() {
             try {
-                // Hier ist jetzt der bombenfeste, offizielle Link drin!
                 let blob = new Blob([
                     "importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');"
                 ], {type: 'application/javascript'});
