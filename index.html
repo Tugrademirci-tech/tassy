@@ -18,7 +18,7 @@
         #eval-val { position: absolute; width: 100%; text-align: center; font-size: 11px; line-height: 14px; font-weight: 700; color: #f1c40f; z-index: 5; text-shadow: 1px 1px 3px #000; }
         #myBoard { width: 100%; border-radius: 8px; overflow: hidden; border: 4px solid #1e293b; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.7); touch-action: none; }
         .info-row { width: 100%; display: flex; justify-content: space-between; margin-top: 10px; font-size: 14px; color: #94a3b8; font-weight: 500; }
-        #status-left { background: #1e293b; padding: 4px 10px; border-radius: 6px; border: 1px solid #334155; color: #f1c40f; }
+        #status-left { background: #1e293b; padding: 6px 10px; border-radius: 6px; border: 1px solid #334155; color: #f1c40f; font-weight: bold; min-height: 34px; text-align: center; width: 100%; display: flex; align-items: center; justify-content: center; }
         .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; width: 100%; margin-top: 15px; }
         button { padding: 12px 5px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 12px; background: #1e293b; color: #e2e8f0; border: 1px solid #334155; transition: all 0.2s; }
         button:active { transform: scale(0.95); background: #334155; }
@@ -59,56 +59,60 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js"></script>
-
+    
     <script>
         var game = new Chess();
         var board = null;
         var playerColor = 'w';
         var isLookingForHint = false;
-        var stockfishEngine = null;
+        var stockfish = null;
+        var lastEval = 0.0; 
 
         function initStockfish() {
             try {
-                // Falls Stockfish direkt im Browser geladen wurde, nutzen wir die globale Funktion
-                if (typeof STOCKFISH === 'function') {
-                    stockfishEngine = STOCKFISH();
-                    
-                    stockfishEngine.onmessage = function(event) {
-                        let line = event; // Direktes Event-Parsing bei dieser Version
-                        if (typeof event === 'object' && event.data) line = event.data;
+                let blob = new Blob([
+                    "importScripts('https://npmcdn.com/stockfish.js@10.0.2/src/stockfish.js');"
+                ], {type: 'application/javascript'});
+                
+                stockfish = new Worker(URL.createObjectURL(blob));
+                stockfish.postMessage('uci');
+                stockfish.postMessage('isready');
 
-                        if (line.indexOf('bestmove') > -1) {
-                            let moveUCI = line.split(' ')[1];
-                            if (moveUCI && moveUCI !== '(none)') {
-                                if (isLookingForHint) {
-                                    highlightHint(moveUCI);
-                                    isLookingForHint = false;
-                                    $('#status-left').text("Tipp angezeigt!");
-                                    setTimeout(() => { $('#status-left').text(game.turn() === playerColor ? "Dein Zug." : "Tassy überlegt..."); }, 1500);
-                                } else {
-                                    game.move({ from: moveUCI.substring(0,2), to: moveUCI.substring(2,4), promotion: 'q' });
-                                    board.position(game.fen());
-                                    updateUI();
-                                }
+                stockfish.onmessage = function(event) {
+                    let line = event.data;
+                    
+                    if (line.indexOf('bestmove') > -1) {
+                        let moveUCI = line.split(' ')[1];
+                        if (moveUCI && moveUCI !== '(none)') {
+                            if (isLookingForHint) {
+                                highlightHint(moveUCI);
+                                isLookingForHint = false;
+                                $('#status-left').text("💡 Tipp angezeigt!");
+                                setTimeout(() => { $('#status-left').text(game.turn() === playerColor ? "Du bist am Zug." : "Tassy überlegt..."); }, 1500);
+                            } else {
+                                game.move({ from: moveUCI.substring(0,2), to: moveUCI.substring(2,4), promotion: 'q' });
+                                board.position(game.fen());
+                                updateUI();
                             }
                         }
-                        if (line.indexOf('info depth') > -1 && line.indexOf('cp') > -1) {
-                            let parts = line.split(' ');
-                            let cpIndex = parts.indexOf('cp');
-                            let score = parseInt(parts[cpIndex + 1]) / 100;
-                            if (game.turn() === 'b') score = -score;
-                            updateEvalBar(score);
+                    }
+                    
+                    if (line.indexOf('info depth') > -1 && line.indexOf('cp') > -1) {
+                        let parts = line.split(' ');
+                        let cpIndex = parts.indexOf('cp');
+                        let score = parseInt(parts[cpIndex + 1]) / 100;
+                        if (game.turn() === 'b') score = -score;
+                        
+                        if (game.turn() !== playerColor) { 
+                            evaluatePlayerMove(score);
                         }
-                    };
-
-                    stockfishEngine.postMessage('uci');
-                    stockfishEngine.postMessage('isready');
-                } else {
-                    $('#status-left').text("Ladefehler!");
-                }
+                        
+                        lastEval = score;
+                        updateEvalBar(score);
+                    }
+                };
             } catch(e) {
-                $('#status-left').text("Fehler!");
+                $('#status-left').text("Engine-Ladefehler!");
             }
         }
 
@@ -126,23 +130,41 @@
             });
             game.reset();
             updateUI();
-            if (playerColor === 'b') { setTimeout(askStockfishToMove, 600); }
+            if (playerColor === 'b') { setTimeout(askStockfishToMove, 500); }
         }
 
         function handleMove(source, target) {
             if (game.turn() !== playerColor) return 'snapback';
             var move = game.move({ from: source, to: target, promotion: 'q' });
             if (move === null) return 'snapback';
+            
+            if (stockfish) {
+                stockfish.postMessage('position fen ' + game.fen());
+                stockfish.postMessage('go depth 10 movetime 300');
+            }
+
             updateUI();
-            if (!game.game_over()) { setTimeout(askStockfishToMove, 250); }
+            if (!game.game_over()) { setTimeout(askStockfishToMove, 600); }
         }
 
         function askStockfishToMove() {
-            if(!stockfishEngine) return;
+            if(!stockfish) return;
             isLookingForHint = false;
-            $('#status-left').text("Tassy überlegt...");
-            stockfishEngine.postMessage('position fen ' + game.fen());
-            stockfishEngine.postMessage('go depth 12 movetime 1000'); 
+            stockfish.postMessage('position fen ' + game.fen());
+            stockfish.postMessage('go depth 13 movetime 1000'); 
+        }
+
+        function evaluatePlayerMove(currentEval) {
+            let diff = Math.abs(lastEval - currentEval);
+            let feedback = "👍 Guter Zug";
+
+            if (diff <= 0.1) feedback = "🌟 Bester Zug!";
+            else if (diff <= 0.3) feedback = "👍 Guter Zug";
+            else if (diff <= 0.7) feedback = "❓ Ungenau";
+            else if (diff <= 1.6) feedback = "❌ Fehler";
+            else if (diff > 1.6) feedback = "💥 PATZER!";
+
+            $('#status-left').text(feedback);
         }
 
         function updateUI() {
@@ -157,9 +179,8 @@
                     }
                 }
             }
-            if (game.in_checkmate()) $('#status-left').text("MATT!");
-            else if (game.in_draw()) $('#status-left').text("REMIS!");
-            else $('#status-left').text(game.turn() === playerColor ? "Dein Zug." : "Tassy überlegt...");
+            if (game.in_checkmate()) $('#status-left').text("🏁 MATT!");
+            else if (game.in_draw()) $('#status-left').text("🤝 REMIS!");
         }
 
         function updateEvalBar(score) {
@@ -170,13 +191,13 @@
             $('#fill').css('width', Math.max(5, Math.min(95, percentage)) + '%');
         }
 
-        function doUndo() { game.undo(); game.undo(); board.position(game.fen()); updateUI(); }
+        function doUndo() { game.undo(); game.undo(); board.position(game.fen()); $('#status-left').text("Zug zurückgenommen."); }
         function doHint() {
-            if(!stockfishEngine || game.game_over() || game.turn() !== playerColor) return;
-            $('#status-left').text("Analysiere...");
+            if(!stockfish || game.game_over() || game.turn() !== playerColor) return;
+            $('#status-left').text("Suche besten Zug...");
             isLookingForHint = true;
-            stockfishEngine.postMessage('position fen ' + game.fen());
-            stockfishEngine.postMessage('go depth 12 movetime 1000');
+            stockfish.postMessage('position fen ' + game.fen());
+            stockfish.postMessage('go depth 13 movetime 1000');
         }
         function highlightHint(move) {
             let from = move.substring(0, 2); let to = move.substring(2, 4);
@@ -185,16 +206,11 @@
         }
         function resetGame() { location.reload(); }
 
-        // Unbedingt die alten blockierenden Service-Worker beim Start im Browser sofort löschen!
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                for(let registration of registrations) { registration.unregister(); }
-            });
+            navigator.serviceWorker.register('service-worker.js')
+            .then(() => console.log("Service Worker aktiv."))
+            .catch(err => console.log("SW Fehler:", err));
         }
     </script>
 </body>
 </html>
-
-
-
-
