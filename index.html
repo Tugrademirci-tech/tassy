@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>TASSY PRO</title>
+    <title>TASSY PRO - Powered by Tugra</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -59,54 +59,56 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js"></script>
 
     <script>
         var game = new Chess();
         var board = null;
         var playerColor = 'w';
         var isLookingForHint = false;
-        var stockfish = null;
+        var stockfishEngine = null;
 
         function initStockfish() {
             try {
-                // DER BLOB-TRICK: So umgehen wir die Sicherheitsblockade der Browser!
-                let blob = new Blob([
-                    "importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');"
-                ], {type: 'application/javascript'});
-                
-                stockfish = new Worker(URL.createObjectURL(blob));
-                
-                stockfish.postMessage('uci');
-                stockfish.postMessage('setoption name Skill Level value 20');
-                stockfish.postMessage('isready');
+                // Falls Stockfish direkt im Browser geladen wurde, nutzen wir die globale Funktion
+                if (typeof STOCKFISH === 'function') {
+                    stockfishEngine = STOCKFISH();
+                    
+                    stockfishEngine.onmessage = function(event) {
+                        let line = event; // Direktes Event-Parsing bei dieser Version
+                        if (typeof event === 'object' && event.data) line = event.data;
 
-                stockfish.onmessage = function(event) {
-                    let line = event.data;
-                    if (line.indexOf('bestmove') > -1) {
-                        let moveUCI = line.split(' ')[1];
-                        if (moveUCI && moveUCI !== '(none)') {
-                            if (isLookingForHint) {
-                                highlightHint(moveUCI);
-                                isLookingForHint = false;
-                                $('#status-left').text("Tipp angezeigt!");
-                                setTimeout(() => { $('#status-left').text(game.turn() === playerColor ? "Dein Zug." : "Tassy überlegt..."); }, 1500);
-                            } else {
-                                game.move({ from: moveUCI.substring(0,2), to: moveUCI.substring(2,4), promotion: 'q' });
-                                board.position(game.fen());
-                                updateUI();
+                        if (line.indexOf('bestmove') > -1) {
+                            let moveUCI = line.split(' ')[1];
+                            if (moveUCI && moveUCI !== '(none)') {
+                                if (isLookingForHint) {
+                                    highlightHint(moveUCI);
+                                    isLookingForHint = false;
+                                    $('#status-left').text("Tipp angezeigt!");
+                                    setTimeout(() => { $('#status-left').text(game.turn() === playerColor ? "Dein Zug." : "Tassy überlegt..."); }, 1500);
+                                } else {
+                                    game.move({ from: moveUCI.substring(0,2), to: moveUCI.substring(2,4), promotion: 'q' });
+                                    board.position(game.fen());
+                                    updateUI();
+                                }
                             }
                         }
-                    }
-                    if (line.indexOf('info depth') > -1 && line.indexOf('cp') > -1) {
-                        let parts = line.split(' ');
-                        let cpIndex = parts.indexOf('cp');
-                        let score = parseInt(parts[cpIndex + 1]) / 100;
-                        if (game.turn() === 'b') score = -score;
-                        updateEvalBar(score);
-                    }
-                };
+                        if (line.indexOf('info depth') > -1 && line.indexOf('cp') > -1) {
+                            let parts = line.split(' ');
+                            let cpIndex = parts.indexOf('cp');
+                            let score = parseInt(parts[cpIndex + 1]) / 100;
+                            if (game.turn() === 'b') score = -score;
+                            updateEvalBar(score);
+                        }
+                    };
+
+                    stockfishEngine.postMessage('uci');
+                    stockfishEngine.postMessage('isready');
+                } else {
+                    $('#status-left').text("Ladefehler!");
+                }
             } catch(e) {
-                $('#status-left').text("Engine-Fehler!");
+                $('#status-left').text("Fehler!");
             }
         }
 
@@ -124,7 +126,7 @@
             });
             game.reset();
             updateUI();
-            if (playerColor === 'b') { setTimeout(askStockfishToMove, 500); }
+            if (playerColor === 'b') { setTimeout(askStockfishToMove, 600); }
         }
 
         function handleMove(source, target) {
@@ -136,11 +138,11 @@
         }
 
         function askStockfishToMove() {
-            if(!stockfish) return;
+            if(!stockfishEngine) return;
             isLookingForHint = false;
             $('#status-left').text("Tassy überlegt...");
-            stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 13 movetime 1000'); 
+            stockfishEngine.postMessage('position fen ' + game.fen());
+            stockfishEngine.postMessage('go depth 12 movetime 1000'); 
         }
 
         function updateUI() {
@@ -170,11 +172,11 @@
 
         function doUndo() { game.undo(); game.undo(); board.position(game.fen()); updateUI(); }
         function doHint() {
-            if(!stockfish || game.game_over() || game.turn() !== playerColor) return;
+            if(!stockfishEngine || game.game_over() || game.turn() !== playerColor) return;
             $('#status-left').text("Analysiere...");
             isLookingForHint = true;
-            stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 13 movetime 1000');
+            stockfishEngine.postMessage('position fen ' + game.fen());
+            stockfishEngine.postMessage('go depth 12 movetime 1000');
         }
         function highlightHint(move) {
             let from = move.substring(0, 2); let to = move.substring(2, 4);
@@ -182,9 +184,17 @@
             setTimeout(() => { $('.square-' + from + ', .square-' + to).removeClass('hint-glow'); }, 2000);
         }
         function resetGame() { location.reload(); }
+
+        // Unbedingt die alten blockierenden Service-Worker beim Start im Browser sofort löschen!
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) { registration.unregister(); }
+            });
+        }
     </script>
 </body>
 </html>
+
 
 
 
