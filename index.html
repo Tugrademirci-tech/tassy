@@ -234,11 +234,6 @@
             else if (game.in_draw()) $('#status-left').text("REMIS!");
             else $('#status-left').text(game.turn() === playerColor ? "Dein Zug." : "TumyE zerstört...");
 
-            if (!game.game_over() && game.turn() === playerColor && stockfish) {
-                isEvalCalculation = true;
-                stockfish.postMessage('position fen ' + game.fen());
-                stockfish.postMessage('go depth 35');
-            }
         }
 
         function updateEvalBar(score, isMate) {
