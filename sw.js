@@ -1,7 +1,8 @@
-const CACHE_NAME = 'tassy-v3.8-cache';
+const CACHE_NAME = 'tumye-v1.0-cache';
 const urlsToCache = [
   'index.html',
-  'stockfish.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/16.0.0/stockfish.js',
+  'https://tests.stockfishchess.org/api/nn/nn-b1a57edbea57.nnue',
   'https://code.jquery.com/jquery-3.5.1.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js',
   'https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css',
