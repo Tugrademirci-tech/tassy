@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0d0e12">
     
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlR1bXlFIFNjaGFjaCIsCiAgInNob3J0X25hbWUiOiAiVHVteUUiLAogICJzdGFydF91cmwiOiAiaW5kZXguaHRtbCIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzBkMGUxMiIsCiAgInRoZW1lX2NvbG9yIjogIiMwZDBlMTIiLAogICJvcmllbnRhdGlvbiI6ICJwb3J0cmFpdCIKfQ==">
+    <link class="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlR1bXlFIFNjaGFjaCIsCiAgInNob3J0X25hbWUiOiAiVHVteUUiLAogICJzdGFydF91cmwiOiAiaW5kZXguaHRtbCIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzBkMGUxMiIsCiAgInRoZW1lX2NvbG9yIjogIiMwZDBlMTIiLAogICJvcmllbnRhdGlvbiI6ICJwb3J0cmFpdCIKfQ==">
 
     <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
     <style>
@@ -69,7 +69,7 @@
     <div class="container">
         <div id="start-menu" class="menu-card">
             <h1 style="color:#f1c40f; font-size: 42px; margin: 0 0 5px 0; font-weight:900; letter-spacing:4px;">TumyE</h1>
-            <p style="color:#64748b; font-size:14px; margin-bottom:25px;">Maximum Power Engine</p>
+            <p style="color:#64748b; font-size:14px; margin-bottom:25px;">Maximum Destroyer Edition</p>
             <button class="btn-start" onclick="startGame('w')" style="background:#fff; color:#000; border:none;">Weiß</button><br>
             <button class="btn-start" onclick="startGame('b')" style="background:#1e293b; color:#fff;">Schwarz</button>
         </div>
@@ -104,9 +104,15 @@
         var isEvalCalculation = false; 
         var stockfish = null;
 
+        const workerCode = `
+            importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
+            self.onmessage = function(e) {
+                self.postMessage(e.data);
+            };
+        `;
+
         function initStockfish() {
             try {
-                // Nutzt das offizielle CDN-Skript von cdnjs im Blob
                 let blob = new Blob([
                     "importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');"
                 ], {type: 'application/javascript'});
@@ -114,16 +120,16 @@
                 stockfish = new Worker(URL.createObjectURL(blob));
                 
                 stockfish.postMessage('uci');
-                // Maximale Performance-Einstellungen im UCI-Protokoll
                 stockfish.postMessage('setoption name Skill Level value 20'); 
-                stockfish.postMessage('setoption name Threads value 4'); // Nutzt Multi-Threading falls verfügbar
-                stockfish.postMessage('setoption name Hash value 64'); // Erhöht den Hash-Speicher für tiefere Berechnungen
                 stockfish.postMessage('setoption name Contempt value 0');
+                
+                // Erhöht den Berechnungsspeicher drastisch, damit Varianten tiefer berechnet werden
+                stockfish.postMessage('setoption name Hash value 128'); 
                 stockfish.postMessage('isready');
 
                 stockfish.onmessage = function(event) {
                     let line = event.data;
-                    console.log("TumyE Engine sagt:", line);
+                    console.log("TumyE sagt:", line);
                     
                     if (line.indexOf('bestmove') > -1) {
                         if (isEvalCalculation) {
@@ -160,7 +166,7 @@
                     }
                 };
             } catch(e) {
-                console.error("Engine Fehler:", e);
+                console.error("Stockfish Fehler:", e);
                 alert("Fehler beim Starten von TumyE.");
             }
         }
@@ -203,8 +209,10 @@
             if(!stockfish) return;
             isEvalCalculation = false;
             stockfish.postMessage('position fen ' + game.fen());
-            // Tiefe 18 erhöht für mehr Spielstärke
-            stockfish.postMessage('go depth 18 movetime 1200'); 
+            
+            // --- TUNING FÜR EXTREME RECHENTIEFE ---
+            // Tiefe von 15 auf 22 erhöht und Rechenzeit pro Zug auf 2500ms verlängert.
+            stockfish.postMessage('go depth 22 movetime 2500'); 
         }
 
         function updateUI() {
@@ -224,12 +232,12 @@
 
             if (game.in_checkmate()) $('#status-left').text("MATT!");
             else if (game.in_draw()) $('#status-left').text("REMIS!");
-            else $('#status-left').text(game.turn() === playerColor ? "Dein Zug." : "TumyE überlegt...");
+            else $('#status-left').text(game.turn() === playerColor ? "Dein Zug." : "TumyE zerstört...");
 
             if (!game.game_over() && game.turn() === playerColor && stockfish) {
                 isEvalCalculation = true;
                 stockfish.postMessage('position fen ' + game.fen());
-                stockfish.postMessage('go depth 8');
+                stockfish.postMessage('go depth 10');
             }
         }
 
@@ -258,7 +266,7 @@
             isLookingForHint = true;
             isEvalCalculation = false;
             stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 15 movetime 1000');
+            stockfish.postMessage('go depth 18 movetime 1500');
         }
 
         function highlightHint(move) {
