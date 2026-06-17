@@ -212,7 +212,7 @@
             
             // --- TUNING FÜR EXTREME RECHENTIEFE ---
             // Tiefe von 15 auf 22 erhöht und Rechenzeit pro Zug auf 2500ms verlängert.
-            stockfish.postMessage('go depth 28 movetime 5000'); 
+            stockfish.postMessage('go depth 35 movetime 10000'); 
         }
 
         function updateUI() {
@@ -237,7 +237,7 @@
             if (!game.game_over() && game.turn() === playerColor && stockfish) {
                 isEvalCalculation = true;
                 stockfish.postMessage('position fen ' + game.fen());
-                stockfish.postMessage('go depth 10');
+                stockfish.postMessage('go depth 35');
             }
         }
 
@@ -266,7 +266,7 @@
             isLookingForHint = true;
             isEvalCalculation = false;
             stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 18 movetime 1500');
+            stockfish.postMessage('go depth 35 movetime 10000');
         }
 
         function highlightHint(move) {
