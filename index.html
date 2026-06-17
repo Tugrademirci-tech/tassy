@@ -97,7 +97,6 @@
     <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
 
     <script>
-        // Service Worker registrieren für Offline-Modus
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js').then(() => console.log("TumyE Cache bereit."));
         }
@@ -111,7 +110,6 @@
 
         function initStockfish() {
             try {
-                // Lädt Stockfish 16 (kompiliert mit WebAssembly & NNUE-Support)
                 let blob = new Blob([
                     "importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/16.0.0/stockfish.js');"
                 ], {type: 'application/javascript'});
@@ -120,14 +118,14 @@
                 
                 stockfish.postMessage('uci');
                 
-                // --- KRAFTPAKET: NNUE AKTIVIEREN & LADEN ---
+                // Integriertes NNUE verwenden (Verhindert Browser-Sicherheitsblockaden)
                 stockfish.postMessage('setoption name Use NNUE value true'); 
-                stockfish.postMessage('setoption name EvalFile value https://tests.stockfishchess.org/api/nn/nn-b1a57edbea57.nnue');
+                stockfish.postMessage('setoption name EvalFile value embedded');
                 
-                // Performance-Tuning
+                // Performance Konfiguration
                 stockfish.postMessage('setoption name Skill Level value 20'); 
-                stockfish.postMessage('setoption name Threads value 4'); // Nutzt 4 CPU-Kerne deines Systems
-                stockfish.postMessage('setoption name Hash value 128'); // Erhöht den Bewertungsspeicher auf 128MB
+                stockfish.postMessage('setoption name Threads value 2'); 
+                stockfish.postMessage('setoption name Hash value 32'); 
                 stockfish.postMessage('isready');
 
                 stockfish.onmessage = function(event) {
@@ -212,7 +210,6 @@
             if(!stockfish) return;
             isEvalCalculation = false;
             stockfish.postMessage('position fen ' + game.fen());
-            // Erhöhte Rechentiefe für das NNUE
             stockfish.postMessage('go depth 16 movetime 1200'); 
         }
 
