@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tumye-v1.0-cache';
+const CACHE_NAME = 'tumye-v2.0-cache';
 const urlsToCache = [
   'index.html',
   'stockfish.js',
@@ -8,7 +8,6 @@ const urlsToCache = [
   'https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js'
 ];
 
-// Figuren-Grafiken automatisch mitschützen
 for (let p of ['wP','wR','wN','wB','wQ','wK','bP','bR','bN','bB','bQ','bK']) {
     urlsToCache.push(`https://chessboardjs.com/img/chesspieces/wikipedia/${p}.png`);
 }
