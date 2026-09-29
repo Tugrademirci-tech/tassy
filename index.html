@@ -228,7 +228,7 @@
 
             if (game.in_checkmate()) $('#status-left').text("MATT!");
             else if (game.in_draw()) $('#status-left').text("REMIS!");
-            else $('#status-left').text(game.turn() === playerColor ? "Dein Zug." : "TumyE zerstört...");
+            else $('#status-left').text(game.turn() === playerColor ? "Dein Zug." : "TumyE denkt nach...");
         }
 
         function updateEvalBar(score, isMate) {
