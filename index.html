@@ -207,8 +207,8 @@
             stockfish.postMessage('position fen ' + game.fen());
             
             // --- BRUTALES POWER TUNING ---
-            // Suchtiefe 40 und 20 Sekunden (20000ms) Bedenkzeit pro Zug!
-            stockfish.postMessage('go depth 40 movetime 20000'); 
+            // Suchtiefe 30 und 5 Sekunden (500ms) Bedenkzeit pro Zug!
+            stockfish.postMessage('go depth 30 movetime 500'); 
         }
 
         function updateUI() {
