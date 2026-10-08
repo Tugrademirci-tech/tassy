@@ -69,13 +69,13 @@
     <div class="container">
         <div id="start-menu" class="menu-card">
             <h1 style="color:#f1c40f; font-size: 42px; margin: 0 0 5px 0; font-weight:900; letter-spacing:4px;">TumyE</h1>
-            <p style="color:#64748b; font-size:14px; margin-bottom:25px;">Made my Tugra Taha Demirci</p>
+            <p style="color:#64748b; font-size:14px; margin-bottom:25px;">Stockfish 19 Maximum Power</p>
             <button class="btn-start" onclick="startGame('w')" style="background:#fff; color:#000; border:none;">Weiß</button><br>
             <button class="btn-start" onclick="startGame('b')" style="background:#1e293b; color:#fff;">Schwarz</button>
         </div>
 
         <div id="game-ui" style="display: none; width: 100%;">
-            <div class="tumye-label">TumyE</div>
+            <div class="tumye-label">TumyE 19</div>
             <div class="bar-wrap">
                 <div id="eval-val">0.0</div>
                 <div id="fill"></div>
@@ -105,8 +105,9 @@
 
         function initStockfish() {
             try {
+                // Stockfish 19 Lite Single-Threaded via jsDelivr CDN
                 let blob = new Blob([
-                    "importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');"
+                    "importScripts('https://cdn.jsdelivr.net/npm/stockfish@19.0.0/stockfish-19-lite-single.js');"
                 ], {type: 'application/javascript'});
                 
                 stockfish = new Worker(URL.createObjectURL(blob));
@@ -118,28 +119,23 @@
 
                 stockfish.onmessage = function(event) {
                     let line = event.data;
-                    console.log("TumyE sagt:", line);
+                    console.log("TumyE 19 sagt:", line);
                     
                     if (line.indexOf('bestmove') > -1) {
                         let moveUCI = line.split(' ')[1];
                         if (moveUCI && moveUCI !== '(none)') {
                             
-                            // 1. Wenn es ein angeforderter Tipp war, nur aufblinken lassen
                             if (isLookingForHint) {
                                 highlightHint(moveUCI);
                                 isLookingForHint = false;
                                 return;
                             }
                             
-                            // 2. 🛑 EISERNE SICHERHEITS-SPERRE:
-                            // Wenn der Spieler am Zug ist, ignoriere alle Befehle der Engine!
-                            // Das verhindert die Geisterzüge für Weiß und Abstürze.
                             if (game.turn() === playerColor) {
                                 console.log("Sperre aktiv: Engine-Zug blockiert, da du am Zug bist.");
                                 return;
                             }
 
-                            // 3. Nur ausführen, wenn TumyE wirklich dran ist
                             game.move({ from: moveUCI.substring(0,2), to: moveUCI.substring(2,4), promotion: 'q' });
                             board.position(game.fen());
                             updateUI();
@@ -163,8 +159,8 @@
                     }
                 };
             } catch(e) {
-                console.error("Stockfish Fehler:", e);
-                alert("Fehler beim Starten von TumyE.");
+                console.error("Stockfish 19 Fehler:", e);
+                alert("Fehler beim Starten von TumyE 19.");
             }
         }
 
@@ -206,9 +202,8 @@
             if(!stockfish) return;
             stockfish.postMessage('position fen ' + game.fen());
             
-            // --- BRUTALES POWER TUNING ---
-            // Suchtiefe 40 und 20 Sekunden (2000ms) Bedenkzeit pro Zug!
-            stockfish.postMessage('go depth 40 movetime 2000'); 
+            // --- ULTIMATIVE POWER: Maximale Tiefe 50 und 3 Sekunden Bedenkzeit pro Zug ---
+            stockfish.postMessage('go depth 50 movetime 3000'); 
         }
 
         function updateUI() {
@@ -255,7 +250,7 @@
             if(!stockfish) return;
             isLookingForHint = true;
             stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 18 movetime 1500');
+            stockfish.postMessage('go depth 22 movetime 1500');
         }
 
         function highlightHint(move) {
