@@ -105,18 +105,13 @@
 
         function initStockfish() {
             try {
-                // Stockfish 19 Lite Single-Threaded via jsDelivr CDN
+                // Stockfish 19 Lite Single via jsDelivr CDN geladen
                 let blob = new Blob([
                     "importScripts('https://cdn.jsdelivr.net/npm/stockfish@19.0.0/stockfish-19-lite-single.js');"
                 ], {type: 'application/javascript'});
                 
                 stockfish = new Worker(URL.createObjectURL(blob));
                 
-                stockfish.postMessage('uci');
-                stockfish.postMessage('setoption name Skill Level value 20'); 
-                stockfish.postMessage('setoption name Hash value 128'); 
-                stockfish.postMessage('isready');
-
                 stockfish.onmessage = function(event) {
                     let line = event.data;
                     console.log("TumyE 19 sagt:", line);
@@ -158,6 +153,13 @@
                         }
                     }
                 };
+
+                // UCI Befehle senden
+                stockfish.postMessage('uci');
+                stockfish.postMessage('setoption name Skill Level value 20'); 
+                stockfish.postMessage('setoption name Hash value 128'); 
+                stockfish.postMessage('isready');
+
             } catch(e) {
                 console.error("Stockfish 19 Fehler:", e);
                 alert("Fehler beim Starten von TumyE 19.");
@@ -202,8 +204,9 @@
             if(!stockfish) return;
             stockfish.postMessage('position fen ' + game.fen());
             
-            // --- ULTIMATIVE POWER: Maximale Tiefe 50 und 3 Sekunden Bedenkzeit pro Zug ---
-            stockfish.postMessage('go depth 50 movetime 3000'); 
+            // --- HÖCHSTE RECHENTIEFE ---
+            // Tiefen-Limit auf 50 und maximale Berechnungszeit pro Zug (3,5 Sekunden)
+            stockfish.postMessage('go depth 50 movetime 3500'); 
         }
 
         function updateUI() {
@@ -232,7 +235,7 @@
 
             if (isMate) {
                 $('#eval-val').text("M" + Math.abs(displayScore));
-                $('#fill').css('width', displayScore > 0 ? '100%' : '0%');
+                $('#fill').css('width', displayScore > 0 ? '100%': '0%');
             } else {
                 $('#eval-val').text(displayScore > 0 ? "+" + displayScore.toFixed(1) : displayScore.toFixed(1));
                 let percentage = 50 + (displayScore * 5);
