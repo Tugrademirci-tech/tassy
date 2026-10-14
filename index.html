@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ !DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0d0e12">
     
-    <link class="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlR1bXlFIFNjaGFjaCIsCiAgInNob3J0X25hbWUiOiAiVHVteUUiLAogICJzdGFydF91cmwiOiAiaW5kZXguaHRtbCIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzBkMGUxMiIsCiAgInRoZW1lX2NvbG9yIjogIiMwZDBlMTIiLAogICJvcmllbnRhdGlvbiI6ICJwb3J0cmFpdCIKfQ==">
+    <link class="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlR1bXlFIFNjaGFjaCIsCiAgInNob3J0X25hbWUiOiAiVHVteUUiLAogICJzdGFydF91cmwiOiAiaW5kZXguaHRtbCIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzBkMGUxMiIsCiAgInRoZW1lX2NvbG9yIjogI29kMGUxMiIsCiAgIm9yaWVudGF0aW9uIjogInBvcnRyYWl0Igp9">
 
     <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
     <style>
@@ -69,7 +69,7 @@
     <div class="container">
         <div id="start-menu" class="menu-card">
             <h1 style="color:#f1c40f; font-size: 42px; margin: 0 0 5px 0; font-weight:900; letter-spacing:4px;">TumyE</h1>
-            <p style="color:#64748b; font-size:14px; margin-bottom:25px;">Made my Tugra Taha Demirci</p>
+            <p style="color:#64748b; font-size:14px; margin-bottom:25px;">Made by Tugra Taha Demirci</p>
             <button class="btn-start" onclick="startGame('w')" style="background:#fff; color:#000; border:none;">Weiß</button><br>
             <button class="btn-start" onclick="startGame('b')" style="background:#1e293b; color:#fff;">Schwarz</button>
         </div>
@@ -105,41 +105,33 @@
 
         function initStockfish() {
             try {
-                let blob = new Blob([
-                    "importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');"
-                ], {type: 'application/javascript'});
-                
-                stockfish = new Worker(URL.createObjectURL(blob));
+                // Einbindung von Stockfish 16 (Single-Threaded WASM Lite via jsDelivr CDN)
+                stockfish = new Worker('https://cdn.jsdelivr.net/npm/stockfish@16.0.0/src/stockfish.js');
                 
                 stockfish.postMessage('uci');
                 stockfish.postMessage('setoption name Skill Level value 20'); 
-                stockfish.postMessage('setoption name Hash value 128'); 
+                stockfish.postMessage('setoption name Hash value 16'); 
                 stockfish.postMessage('isready');
 
                 stockfish.onmessage = function(event) {
-                    let line = event.data;
+                    let line = typeof event.data === 'string' ? event.data : '';
                     console.log("TumyE sagt:", line);
                     
                     if (line.indexOf('bestmove') > -1) {
                         let moveUCI = line.split(' ')[1];
                         if (moveUCI && moveUCI !== '(none)') {
                             
-                            // 1. Wenn es ein angeforderter Tipp war, nur aufblinken lassen
                             if (isLookingForHint) {
                                 highlightHint(moveUCI);
                                 isLookingForHint = false;
                                 return;
                             }
                             
-                            // 2. 🛑 EISERNE SICHERHEITS-SPERRE:
-                            // Wenn der Spieler am Zug ist, ignoriere alle Befehle der Engine!
-                            // Das verhindert die Geisterzüge für Weiß und Abstürze.
                             if (game.turn() === playerColor) {
                                 console.log("Sperre aktiv: Engine-Zug blockiert, da du am Zug bist.");
                                 return;
                             }
 
-                            // 3. Nur ausführen, wenn TumyE wirklich dran ist
                             game.move({ from: moveUCI.substring(0,2), to: moveUCI.substring(2,4), promotion: 'q' });
                             board.position(game.fen());
                             updateUI();
@@ -206,8 +198,7 @@
             if(!stockfish) return;
             stockfish.postMessage('position fen ' + game.fen());
             
-            // --- BRUTALES POWER TUNING ---
-            // Suchtiefe 50 und 10 Sekunden (10000ms) Bedenkzeit pro Zug!
+            // Rechnet maximal bis Tiefe 50 oder bis 10000ms Bedenkzeit abgelaufen sind
             stockfish.postMessage('go depth 50 movetime 10000'); 
         }
 
@@ -268,4 +259,4 @@
         function resetGame() { location.reload(); }
     </script>
 </body>
-</html>  
+</html>
