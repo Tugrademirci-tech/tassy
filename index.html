@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0d0e12">
     
-    <link class="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlR1bXlFIFNjaGFjaCIsCiAgInNob3J0X25hbWUiOiAiVHVteUUiLAogICJzdGFydF91cmwiOiAiaW5kZXguaHRtbCIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzBkMGUxMiIsCiAgInRoZW1lX2NvbG9yIjogI29kMGUxMiIsCiAgIm9yaWVudGF0aW9uIjogInBvcnRyYWl0Igp9">
+    <link class="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlR1bXlFIFNjaGFjaCIsCiAgInNob3J0X25hbWUiOiAiVHVteUUiLAogICJzdGFydF91cmwiOiAiaW5kZXguaHRtbCIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzBkMGUxMiIsCiAgInRoZW1lX2NvbG9yIjogIiMwZDBlMTIiLAogICJvcmllbnRhdGlvbiI6ICJwb3J0cmFpdCIKfQ==">
 
     <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
     <style>
@@ -105,8 +105,12 @@
 
         function initStockfish() {
             try {
-                // Einbindung von Stockfish 16 (Single-Threaded WASM Lite via jsDelivr CDN)
-                stockfish = new Worker('https://cdn.jsdelivr.net/npm/stockfish@16.0.0/src/stockfish.js');
+                // Wir nutzen wieder die bewährte und fehlerfreie Methode via Blob
+                let blob = new Blob([
+                    "importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');"
+                ], {type: 'application/javascript'});
+                
+                stockfish = new Worker(URL.createObjectURL(blob));
                 
                 stockfish.postMessage('uci');
                 stockfish.postMessage('setoption name Skill Level value 20'); 
@@ -114,10 +118,10 @@
                 stockfish.postMessage('isready');
 
                 stockfish.onmessage = function(event) {
-                    let line = typeof event.data === 'string' ? event.data : '';
+                    let line = event.data;
                     console.log("TumyE sagt:", line);
                     
-                    if (line.indexOf('bestmove') > -1) {
+                    if (typeof line === 'string' && line.indexOf('bestmove') > -1) {
                         let moveUCI = line.split(' ')[1];
                         if (moveUCI && moveUCI !== '(none)') {
                             
@@ -138,7 +142,7 @@
                         }
                     }
                     
-                    if (line.indexOf('info depth') > -1) {
+                    if (typeof line === 'string' && line.indexOf('info depth') > -1) {
                         let parts = line.split(' ');
                         let score = 0;
                         if (line.indexOf('cp') > -1) {
@@ -197,8 +201,6 @@
         function askStockfishToMove() {
             if(!stockfish) return;
             stockfish.postMessage('position fen ' + game.fen());
-            
-            // Rechnet maximal bis Tiefe 50 oder bis 10000ms Bedenkzeit abgelaufen sind
             stockfish.postMessage('go depth 50 movetime 10000'); 
         }
 
