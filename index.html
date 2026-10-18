@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>TumyE Maximum Power</title>
+    <title>TumyE Maximum Power - Stockfish 19</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -69,13 +69,14 @@
     <div class="container">
         <div id="start-menu" class="menu-card">
             <h1 style="color:#f1c40f; font-size: 42px; margin: 0 0 5px 0; font-weight:900; letter-spacing:4px;">TumyE</h1>
-            <p style="color:#64748b; font-size:14px; margin-bottom:25px;">Made by Tugra Taha Demirci</p>
+            <p style="color:#64748b; font-size:14px; margin-bottom:5px;">Made by Tugra Taha Demirci</p>
+            <p style="color:#38bdf8; font-size:12px; margin-bottom:25px; font-weight:600;">Powered by Stockfish 19</p>
             <button class="btn-start" onclick="startGame('w')" style="background:#fff; color:#000; border:none;">Weiß</button><br>
             <button class="btn-start" onclick="startGame('b')" style="background:#1e293b; color:#fff;">Schwarz</button>
         </div>
 
         <div id="game-ui" style="display: none; width: 100%;">
-            <div class="tumye-label">TumyE</div>
+            <div class="tumye-label">TumyE SF19</div>
             <div class="bar-wrap">
                 <div id="eval-val">0.0</div>
                 <div id="fill"></div>
@@ -105,9 +106,9 @@
 
         function initStockfish() {
             try {
-                // Wir nutzen wieder die bewährte und fehlerfreie Methode via Blob
+                // Stockfish 19 ASM-JS via jsDelivr CDN geladen
                 let blob = new Blob([
-                    "importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');"
+                    "importScripts('https://cdn.jsdelivr.net/npm/stockfish@19.0.1/src/stockfish-19-asm.js');"
                 ], {type: 'application/javascript'});
                 
                 stockfish = new Worker(URL.createObjectURL(blob));
@@ -119,7 +120,7 @@
 
                 stockfish.onmessage = function(event) {
                     let line = event.data;
-                    console.log("TumyE sagt:", line);
+                    console.log("TumyE SF19 sagt:", line);
                     
                     if (typeof line === 'string' && line.indexOf('bestmove') > -1) {
                         let moveUCI = line.split(' ')[1];
@@ -132,7 +133,7 @@
                             }
                             
                             if (game.turn() === playerColor) {
-                                console.log("Sperre aktiv: Engine-Zug blockiert, da du am Zug bist.");
+                                console.log("Sperre aktiv: Engine-Zug blockiert.");
                                 return;
                             }
 
@@ -159,8 +160,8 @@
                     }
                 };
             } catch(e) {
-                console.error("Stockfish Fehler:", e);
-                alert("Fehler beim Starten von TumyE.");
+                console.error("Stockfish 19 Fehler:", e);
+                alert("Fehler beim Starten von TumyE mit Stockfish 19.");
             }
         }
 
@@ -201,7 +202,7 @@
         function askStockfishToMove() {
             if(!stockfish) return;
             stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 50 movetime 10000'); 
+            stockfish.postMessage('go depth 20 movetime 2000'); 
         }
 
         function updateUI() {
@@ -248,7 +249,7 @@
             if(!stockfish) return;
             isLookingForHint = true;
             stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 18 movetime 1500');
+            stockfish.postMessage('go depth 15 movetime 1000');
         }
 
         function highlightHint(move) {
