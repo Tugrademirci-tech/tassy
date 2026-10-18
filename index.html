@@ -2,14 +2,14 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>TumyE Maximum Power - Tengines </title>
+    <title>TumyE Maximum Power</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0d0e12">
     
-    <link class="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlR1bXlFIFNjaGFjaCIsCiAgInNob3J0X25hbWUiOiAiVHVteUUiLAogICJzdGFydF91cmwiOiAiaW5kZXguaHRtbCIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzBkMGUxMiIsCiAgInRoZW1lX2NvbG9yIjogIiMwZDBlMTIiLAogICJvcmllbnRhdGlvbiI6ICJwb3J0cmFpdCIKfQ==">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlR1bXlFIFNjaGFjaCIsCiAgInNob3J0X25hbWUiOiAiVHVteUUiLAogICJzdGFydF91cmwiOiAiaW5kZXguaHRtbCIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzBkMGUxMiIsCiAgInRoZW1lX2NvbG9yIjogIiMwZDBlMTIiLAogICJvcmllbnRhdGlvbiI6ICJwb3J0cmFpdCIKfQ==">
 
     <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
     <style>
@@ -69,14 +69,13 @@
     <div class="container">
         <div id="start-menu" class="menu-card">
             <h1 style="color:#f1c40f; font-size: 42px; margin: 0 0 5px 0; font-weight:900; letter-spacing:4px;">TumyE</h1>
-            <p style="color:#64748b; font-size:14px; margin-bottom:5px;">Made by Tugra Taha Demirci</p>
-            <p style="color:#38bdf8; font-size:12px; margin-bottom:25px; font-weight:600;">Powered by Stockfish 19</p>
+            <p style="color:#64748b; font-size:14px; margin-bottom:25px;">Made by Tugra Taha Demirci</p>
             <button class="btn-start" onclick="startGame('w')" style="background:#fff; color:#000; border:none;">Weiß</button><br>
             <button class="btn-start" onclick="startGame('b')" style="background:#1e293b; color:#fff;">Schwarz</button>
         </div>
 
         <div id="game-ui" style="display: none; width: 100%;">
-            <div class="tumye-label">TumyE SF19</div>
+            <div class="tumye-label">TumyE</div>
             <div class="bar-wrap">
                 <div id="eval-val">0.0</div>
                 <div id="fill"></div>
@@ -106,21 +105,17 @@
 
         function initStockfish() {
             try {
-                // Stockfish 19 Single-Threaded via jsDelivr CDN
-                let blob = new Blob([
-                    "importScripts('https://cdn.jsdelivr.net/npm/stockfish@19.0.1/src/stockfish-19-single.js');"
-                ], {type: 'application/javascript'});
-                
-                stockfish = new Worker(URL.createObjectURL(blob));
+                // Stockfish 19 (Lite, single-threaded).
+                // Die .js und .wasm Datei müssen im selben Ordner wie index.html liegen.
+                stockfish = new Worker('stockfish-19-lite-single.js');
                 
                 stockfish.postMessage('uci');
-                stockfish.postMessage('setoption name Skill Level value 20'); 
                 stockfish.postMessage('setoption name Hash value 16'); 
                 stockfish.postMessage('isready');
 
                 stockfish.onmessage = function(event) {
                     let line = event.data;
-                    console.log("TumyE SF19 sagt:", line);
+                    console.log("TumyE sagt:", line);
                     
                     if (typeof line === 'string' && line.indexOf('bestmove') > -1) {
                         let moveUCI = line.split(' ')[1];
@@ -133,7 +128,7 @@
                             }
                             
                             if (game.turn() === playerColor) {
-                                console.log("Sperre aktiv: Engine-Zug blockiert.");
+                                console.log("Sperre aktiv: Engine-Zug blockiert, da du am Zug bist.");
                                 return;
                             }
 
@@ -159,9 +154,13 @@
                         }
                     }
                 };
+
+                stockfish.onerror = function(e) {
+                    console.error("Worker-Fehler:", e);
+                };
             } catch(e) {
-                console.error("Stockfish 19 Fehler:", e);
-                alert("Fehler beim Starten von TumyE mit Stockfish 19.");
+                console.error("Stockfish Fehler:", e);
+                alert("Fehler beim Starten von TumyE.");
             }
         }
 
@@ -202,7 +201,7 @@
         function askStockfishToMove() {
             if(!stockfish) return;
             stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 20 movetime 2000'); 
+            stockfish.postMessage('go depth 50 movetime 10000'); 
         }
 
         function updateUI() {
@@ -249,7 +248,7 @@
             if(!stockfish) return;
             isLookingForHint = true;
             stockfish.postMessage('position fen ' + game.fen());
-            stockfish.postMessage('go depth 15 movetime 1000');
+            stockfish.postMessage('go depth 18 movetime 1500');
         }
 
         function highlightHint(move) {
@@ -260,6 +259,58 @@
         }
 
         function resetGame() { location.reload(); }
+
+        // Service Worker registrieren (Offline-Modus / App-Installation)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(function(e) {
+                console.warn("Service Worker konnte nicht registriert werden:", e);
+            });
+        }
     </script>
 </body>
 </html>
+
+Falls die Datei sw.js bei dir auch nicht angezeigt wird, hier ebenfalls zum Kopieren:
+
+js
+const CACHE_NAME = 'tumye-v4.0-sf19';
+const urlsToCache = [
+  './',
+  'index.html',
+  'stockfish-19-lite-single.js',
+  'stockfish-19-lite-single.wasm',
+  'https://code.jquery.com/jquery-3.5.1.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js',
+  'https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css',
+  'https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js'
+];
+
+for (let p of ['wP','wR','wN','wB','wQ','wK','bP','bR','bN','bB','bQ','bK']) {
+    urlsToCache.push(`https://chessboardjs.com/img/chesspieces/wikipedia/${p}.png`);
+}
+
+self.addEventListener('install', event => {
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll(urlsToCache);
+    })
+  );
+});
+
+// Alte Caches (z. B. v3.0 mit Stockfish 10) löschen
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request).then(response => {
+      return response || fetch(event.request);
+    })
+  );
+});
