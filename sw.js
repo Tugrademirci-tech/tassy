@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tumye-v3.0-cache';
+const CACHE_NAME = 'tumye-sf19-cache-v1';
 const urlsToCache = [
   './',
   'index.html',
@@ -6,7 +6,7 @@ const urlsToCache = [
   'https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js',
   'https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css',
   'https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js',
-  'https://cdn.jsdelivr.net/npm/stockfish@16.0.0/src/stockfish.js'
+  'https://cdn.jsdelivr.net/npm/stockfish@19.0.1/src/stockfish-19-asm.js'
 ];
 
 for (let p of ['wP','wR','wN','wB','wQ','wK','bP','bR','bN','bB','bQ','bK']) {
