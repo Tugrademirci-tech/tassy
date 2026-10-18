@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>TumyE Maximum Power - Stockfish 19</title>
+    <title>TumyE Maximum Power - Tengines </title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -106,9 +106,9 @@
 
         function initStockfish() {
             try {
-                // Stockfish 19 ASM-JS via jsDelivr CDN geladen
+                // Stockfish 19 Single-Threaded via jsDelivr CDN
                 let blob = new Blob([
-                    "importScripts('https://cdn.jsdelivr.net/npm/stockfish@19.0.1/src/stockfish-19-asm.js');"
+                    "importScripts('https://cdn.jsdelivr.net/npm/stockfish@19.0.1/src/stockfish-19-single.js');"
                 ], {type: 'application/javascript'});
                 
                 stockfish = new Worker(URL.createObjectURL(blob));
