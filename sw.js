@@ -2,6 +2,7 @@ const CACHE_NAME = 'tumye-v4.1-sf19';
 const urlsToCache = [
   './',
   'index.html',
+  'icon_skizze.png',  
   'stockfish-19-lite-single.js',
   'stockfish-19-lite-single.wasm',
   'https://code.jquery.com/jquery-3.5.1.min.js',
